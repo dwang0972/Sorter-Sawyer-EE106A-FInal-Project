@@ -12,25 +12,34 @@ bridge = CvBridge()
 
 def detect_circles(img):
 	cv2.medianBlur(img, 5)
-	cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
-	circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT,1,20,
-                            param1=50,param2=30,minRadius=0,maxRadius=0)
+	img = cv2.cvtColor(img,cv2.COLOR_BGRA2GRAY)
+	circles = cv2.HoughCircles(img, cv2.cv.CV_HOUGH_GRADIENT,1,500,
+                            param1=50,param2=30,minRadius=10,maxRadius=0)
 	circles = np.uint16(np.around(circles))
+
+	for i in circles[0, :]:
+		cv2.circle(img, (i[0], i[1]), i[2], (0,255,0), 2)
+		cv2.circle(img, (i[0], i[1]), 2, (0,0,255), 3)
+	cv2.imshow('circles', img)
+	cv2.waitKey()
+	return circles
 
 
 def callback(data):
-	rospy.logdebug("Received image")
+	print("Received image")
 	try:
-		cv_image = bridge.imgmsg_to_cv2(data, "bgr8")
+		cv_image = bridge.imgmsg_to_cv2(data, "bgra8")
 	except CvBridgeError as e:
 		print(e)
 
-	print("Image size: ({0}, {1})".format(cv_image.shape[0], cv_image.shape[1]))
+	#print("Image size: ({0}, {1})".format(cv_image.shape[0], cv_image.shape[1]))
+	circles = detect_circles(cv_image)
+	#print(circles)
 
 
 def main():
 	rospy.init_node("circle")
-	rospy.Subscriber("/cameras/right_hand_camera/image", Image, callback)
+	rospy.Subscriber("/io/internal_camera/head_camera/image_raw", Image, callback)
 	try:
 		rospy.spin()
 	except KeyboardInterrupt:
