@@ -1,5 +1,8 @@
+#! /usr/bin/python
+
 import cv2
 import numpy as np
+import sys
 
 import rospy
 from sensor_msgs.msg import Image
@@ -22,7 +25,7 @@ def callback(data):
 	except CvBridgeError as e:
 		print(e)
 
-	print("Image size: ({0}, {1})", cv_image.shape[0], cv_image.shape[1])
+	print("Image size: ({0}, {1})".format(cv_image.shape[0], cv_image.shape[1]))
 
 
 def main():
