@@ -1,0 +1,7 @@
+baxter/
+baxter_common/
+baxter_examples/
+baxter_interface/
+baxter_simulator/
+baxter_tools/
+zhen_baxter_moveit/
