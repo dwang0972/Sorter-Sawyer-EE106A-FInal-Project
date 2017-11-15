@@ -1,0 +1,8 @@
+prefix=/home/cc/ee106a/fa17/class/ee106a-aam/ros_workspaces/final_proj_ws/install
+
+Name: camera_test_pkg
+Description: Description of camera_test_pkg
+Version: 0.0.0
+Cflags: 
+Libs: -L/home/cc/ee106a/fa17/class/ee106a-aam/ros_workspaces/final_proj_ws/install/lib 
+Requires: 
