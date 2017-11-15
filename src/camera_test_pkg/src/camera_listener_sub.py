@@ -1,6 +1,7 @@
 #! /usr/bin/python
 
 import cv2
+import cv2.cv as cv
 import numpy as np
 import sys
 import argparse
@@ -14,21 +15,35 @@ bridge = CvBridge()
 
 global img, once
 
-def detect_circles(img):
+def detect_circles(img_path):
+    img = cv2.imread(img_path, 0)
     cv2.medianBlur(img, 5)
     cimg = cv2.cvtColor(img,cv2.COLOR_GRAY2BGR)
-    circles = cv2.HoughCircles(img,cv2.HOUGH_GRADIENT,1,20,
-                            param1=50,param2=30,minRadius=0,maxRadius=0)
-    circles = np.uint16(np.around(circles))
+    circles = cv2.HoughCircles(img,cv.CV_HOUGH_GRADIENT,1,10,
+                            param1=50,param2=30,minRadius=20,maxRadius=40)
+    try: 
+        circles = np.uint16(np.around(circles))
+    except AttributeError as e:
+        print(e)
+
+    for i in circles[0,:]:
+        # draw the outer circle
+        cv2.circle(img,(i[0],i[1]),i[2],(0,255,0),2)
+        # draw the center of the circle
+        cv2.circle(img,(i[0],i[1]),2,(0,0,255),3)
+        print("Center: " + str(i[0]) +"," +str(i[1]))
+    cv2.imshow("sample with circles", img)
+    cv2.waitKey(0)
+    cv2.destroyAllWindows()
+
 
 
 def callback(data):
     global image, once
 
     if once:
-        cv2.imshow("sample", image)
-        cv2.waitKey(0)
-        cv2.destroyAllWindows()
+        cv2.imwrite('sample.jpg', image)
+        detect_circles('sample.jpg')
         sys.exit()
 
     once = True
@@ -52,7 +67,8 @@ def main():
     global once
     once = False
     rospy.init_node("circle_detection")
-    img = rospy.Subscriber("/io/internal_camera/head_camera/image_rect_color", Image, callback)
+    img = None
+    img = rospy.Subscriber("/io/internal_camera/head_camera/image_rect_color", Image, callback, img)
     # cv2.imshow("sample", bridge.imgmsg_to_cv2(take_image, "bgr8"))
 
     try:
