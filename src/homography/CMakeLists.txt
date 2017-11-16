@@ -6,8 +6,9 @@ find_package(catkin REQUIRED COMPONENTS
   ar_track_alvar
   ar_track_alvar_msgs
   message_generation
-  baxter_core_msgs
-  baxter_interface
+  intera_core_msgs
+  intera_interface
+  sensor_msgs
 )
 
 add_service_files(
@@ -18,7 +19,8 @@ add_service_files(
 generate_messages(
   DEPENDENCIES
   ar_track_alvar_msgs
-  baxter_core_msgs
+  intera_core_msgs
+  sensor_msgs
 )
 
 catkin_package(
@@ -26,9 +28,10 @@ catkin_package(
   rospy
   ar_track_alvar
   ar_track_alvar_msgs
-  baxter_core_msgs
-  baxter_interface
+  intera_core_msgs
+  intera_interface
   message_runtime
+  sensor_msgs
 )
 
 #############
