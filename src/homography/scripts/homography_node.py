@@ -140,17 +140,17 @@ def main():
 
 
     # MoveIt
-    rospy.wait_for_service('compute_ik')
-    compute_ik = rospy.ServiceProxy('compute_ik', GetPositionIK)
-    robot = moveit_commander.RobotCommander()
-    rospy.logdebug("Robot groups: {0}".format(robot.get_group_names()))
-    group = moveit_commander.MoveGroupCommander("right_arm")
-    group.clear_pose_targets()
+    # rospy.wait_for_service('compute_ik')
+    # compute_ik = rospy.ServiceProxy('compute_ik', GetPositionIK)
+    # robot = moveit_commander.RobotCommander()
+    # rospy.logdebug("Robot groups: {0}".format(robot.get_group_names()))
+    # group = moveit_commander.MoveGroupCommander("right_arm")
+    # group.clear_pose_targets()
 
-    display_trajectory_publisher = rospy.Publisher(
-                                    '/move_group/display_planned_path',
-                                    moveit_msgs.msg.DisplayTrajectory,
-                                    queue_size=20)
+    # display_trajectory_publisher = rospy.Publisher(
+    #                                 '/move_group/display_planned_path',
+    #                                 moveit_msgs.msg.DisplayTrajectory,
+    #                                 queue_size=20)
 
 
 
@@ -236,6 +236,30 @@ def main():
     rospy.logdebug("Initialization done")
 
     while not rospy.is_shutdown():
+        # Get image from camera
+        global once
+        once = False
+        rospy.init_node("circle_detection")
+        img = None
+        img = rospy.Subscriber("/io/internal_camera/head_camera/image_rect_color", Image, callback, img)
+        try:
+            rospy.spin()
+            once = True
+        except AttributeError as e:
+            print(e)
+        # Detect circles
+        # circles = cv2.HoughCircles(img,cv.CV_HOUGH_GRADIENT,1,10,param1=50,param2=30,minRadius=20,maxRadius=40)
+        circles = cv2.HoughCircles(img,cv.CV_HOUGH_GRADIENT,1,10,50,30,20,40)
+
+        try: 
+            circles = np.uint16(np.around(circles))
+        except AttributeError as e:
+            print(e)
+
+        # Get center of first circle detected
+        centerX = circles[0,:][0][0]
+        centerY = circles[0,:][0][0][1]
+
         markers = last_image_service().marker.markers
         if len(markers) > 0:
             rospy.logdebug("Found markers: {0}".format(len(markers)))
@@ -264,15 +288,29 @@ def main():
                 w=0
             )
 
-            pose = markers[0].pose
-            pose.header = markers[0].header
-            pose = listener.transformPose("/base", pose)
+            arPose = markers[0].pose
+            arPose.header = markers[0].header
 
-            pose.pose.position.z += 0.4
-            pose.pose.orientation = orientation
 
-            rospy.logdebug(pose)
+            # Create new camera pose
+            circlePose = Pose()
+            circlePose.position.x = centerX
+            circlePose.position.y = centerY
+            circlePose.position.z = arPose.pose.position.z 
+            circlePose.orientation.w = 1
 
+            arPose = listener.transformPose("/base", arPose)
+
+            arPose.pose.position.z += 0.4
+            arPose.pose.orientation = orientation
+
+            # Transform circle pose from camera frame to base frame
+            circlePose = listener.transformPose("/base", circlePose)
+            rospy.logdebug(arPose)
+            print("arPose")
+            print(arPose)
+            print("circlePose")
+            print(circlePose)
             
             joint_angles = ik_request(iksvc, pose.pose)
             if joint_angles != False:
