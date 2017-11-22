@@ -1,0 +1,6 @@
+# Request
+string frame
+string marker_type
+---
+# A response containing image data
+geometry_msgs/PoseStamped pose

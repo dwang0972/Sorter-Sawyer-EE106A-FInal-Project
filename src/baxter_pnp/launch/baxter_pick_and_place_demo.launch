@@ -2,6 +2,13 @@
 <launch>
 
   <!-- We resume the logic in empty_world.launch, changing the name of the world to be launched -->
+  <arg name="simulation" default="false" />
+  <arg name="limb" default="left" />
+
+  <param name="simulation" value="$(arg simulation)"/>
+  <param name="limb" value="$(arg limb)"/>
+
+
   <!--<include file="$(find baxter_gazebo)/launch/baxter_world.launch"/>-->
 
   <!-- Start the Baxter pick and place demo -->

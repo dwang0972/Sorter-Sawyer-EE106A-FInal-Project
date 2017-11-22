@@ -5,6 +5,7 @@ find_package(catkin REQUIRED COMPONENTS
   rospy
   ar_track_alvar
   ar_track_alvar_msgs
+  geometry_msgs
   message_generation
   intera_core_msgs
   intera_interface
@@ -14,11 +15,13 @@ find_package(catkin REQUIRED COMPONENTS
 add_service_files(
   FILES
   ArLastMarker.srv
+  ArMarkerPose.srv
 )
 
 generate_messages(
   DEPENDENCIES
   ar_track_alvar_msgs
+  geometry_msgs
   intera_core_msgs
   sensor_msgs
 )
@@ -28,6 +31,7 @@ catkin_package(
   rospy
   ar_track_alvar
   ar_track_alvar_msgs
+  geometry_msgs
   intera_core_msgs
   intera_interface
   message_runtime
