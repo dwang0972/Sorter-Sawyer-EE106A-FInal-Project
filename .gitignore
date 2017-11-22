@@ -103,3 +103,4 @@ ENV/
 # ROS
 build/
 devel/
+baxter*.sh

@@ -28,7 +28,7 @@
 # POSSIBILITY OF SUCH DAMAGE.
 
 """
-Baxter RSDK Inverse Kinematics Pick and Place Demo
+Intera RSDK Inverse Kinematics Pick and Place Demo
 """
 import argparse
 import struct
@@ -38,10 +38,11 @@ import copy
 import rospy
 import rospkg
 
-#from gazebo_msgs.srv import (
-#    SpawnModel,
-#    DeleteModel,
-#)
+from gazebo_msgs.srv import (
+    SpawnModel,
+    DeleteModel,
+)
+
 from geometry_msgs.msg import (
     PoseStamped,
     Pose,
@@ -53,27 +54,27 @@ from std_msgs.msg import (
     Empty,
 )
 
-from baxter_core_msgs.srv import (
+from intera_core_msgs.srv import (
     SolvePositionIK,
     SolvePositionIKRequest,
 )
 
-import baxter_interface
+import intera_interface
 
 class PickAndPlace(object):
     def __init__(self, limb, hover_distance = 0.15, verbose=True):
         self._limb_name = limb # string
         self._hover_distance = hover_distance # in meters
         self._verbose = verbose # bool
-        self._limb = baxter_interface.Limb(limb)
-        self._gripper = baxter_interface.Gripper(limb)
+        self._limb = intera_interface.Limb(limb)
+        self._gripper = intera_interface.Gripper(limb)
         rospy.logdebug("Creating service proxy")
         ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
         self._iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
         rospy.wait_for_service(ns, 5.0)
         # verify robot is enabled
         rospy.logdebug("Getting robot state... ")
-        self._rs = baxter_interface.RobotEnable(baxter_interface.CHECK_VERSION)
+        self._rs = intera_interface.RobotEnable(intera_interface.CHECK_VERSION)
         self._init_state = self._rs.state().enabled
         rospy.logdebug("Enabling robot... ")
         self._rs.enable()
@@ -188,7 +189,7 @@ def load_gazebo_models(table_pose=Pose(position=Point(x=1.0, y=0.0, z=0.0)),
                        block_pose=Pose(position=Point(x=0.6725, y=0.1265, z=0.7825)),
                        block_reference_frame="world"):
     # Get Models' Path
-    model_path = rospkg.RosPack().get_path('baxter_sim_examples')+"/models/"
+    model_path = rospkg.RosPack().get_path('intera_sim_examples')+"/models/"
     # Load Table SDF
     table_xml = ''
     with open (model_path + "cafe_table/model.sdf", "r") as table_file:
@@ -236,32 +237,46 @@ def main():
 
     Note: This is a highly scripted and tuned demo. The object location
     is "known" and movement is done completely open loop. It is expected
-    behavior that Baxter will eventually mis-pick or drop the block. You
+    behavior that Intera will eventually mis-pick or drop the block. You
     can improve on this demo by adding perception and feedback to close
     the loop.
     """
     rospy.logdebug("Starting node")
     rospy.init_node("ik_pick_and_place", log_level=rospy.DEBUG)
-    # Load Gazebo Models via Spawning Services
-    # Note that the models reference is the /world frame
-    # and the IK operates with respect to the /base frame
-    #load_gazebo_models()
-    # Remove models from the scene on shutdown
-    #rospy.on_shutdown(delete_gazebo_models)
 
-    # Wait for the All Clear from emulator startup
-    #rospy.wait_for_message("/robot/sim/started", Empty)
+    simulation = rospy.get_param("simulation")
+    rospy.logdebug("simulation: {0}".format(simulation))
 
-    limb = 'right'
+    if simulation == "true":
+        # Load Gazebo Models via Spawning Services
+        # Note that the models reference is the /world frame
+        # and the IK operates with respect to the /base frame
+        load_gazebo_models()
+        # Remove models from the scene on shutdown
+        rospy.on_shutdown(delete_gazebo_models)
+
+        # Wait for the All Clear from emulator startup
+        rospy.wait_for_message("/robot/sim/started", Empty)
+
+    limb = rospy.get_param("limb")
+    rospy.logdebug("limb: {0}".format(limb))
+
     hover_distance = 0.15 # meters
     # Starting Joint angles for left arm
-    starting_joint_angles = {'right_w0': 0.6699952259595108,
+
+    if limb == "right":
+        starting_joint_angles = {'right_w0': 0.6699952259595108,
                              'right_w1': 1.030009435085784,
                              'right_w2': -0.4999997247485215,
                              'right_e0': -1.189968899785275,
                              'right_e1': 1.9400238130755056,
                              'right_s0': -0.08000397926829805,
                              'right_s1': -0.9999781166910306}
+    else:
+        rospy.logerr("Unknown limb: {0}".format(limb))
+
+
+
     pnp = PickAndPlace(limb, hover_distance)
     # An orientation for gripper fingers to be overhead and parallel to the obj
     overhead_orientation = Quaternion(

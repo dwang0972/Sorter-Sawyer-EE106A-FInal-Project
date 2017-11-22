@@ -1,5 +1,5 @@
 <launch>
-  <arg name="marker_size" default="17.8" />
+  <arg name="marker_size" default="13" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/io/internal_camera/head_camera/image_raw" />
@@ -10,15 +10,13 @@
   <arg name="marker_margin" default="2" />
   <arg name="frame_id" default="/head_camera" />
 
-  <!--<node name="headsub" pkg="homography" type="headsub.py" respawn="false" args="ar_marker_13" />-->
-
-  <!--<node name="joint_trajectory_action_server" pkg="intera_interface" type="joint_trajectory_action_server.py" />-->
-  <include file="$(find sawyer_moveit_config)/launch/move_group.launch"/>
-
   <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
 
 
+  <node name="pnp_srv" pkg="baxter_pnp" type="pnp_srv.py" respawn="false" output="screen">
+    <param name="hover_distance" value="0.1" />
+  </node>
   <node name="ar_srv" pkg="homography" type="ar_srv.py"  respawn="false" output="screen" />
-  <node name="homography" pkg="homography" type="homography_node.py"  respawn="false" output="screen" />
+  <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen" />
 
 </launch>

@@ -11,6 +11,22 @@ find_package(catkin REQUIRED COMPONENTS
   baxter_tools
   gazebo_ros
   gazebo_msgs
+  geometry_msgs
+  intera_core_msgs
+  intera_interface
+  sensor_msgs
+)
+
+add_service_files(
+  FILES
+  PickAndPlace.srv
+)
+
+generate_messages(
+  DEPENDENCIES
+  geometry_msgs
+  intera_core_msgs
+  sensor_msgs
 )
 
 catkin_package(
@@ -24,6 +40,10 @@ catkin_package(
   baxter_tools
   gazebo_ros
   gazebo_msgs
+  geometry_msgs
+  intera_core_msgs
+  intera_interface
+  sensor_msgs
 )
 
 
@@ -32,7 +52,7 @@ catkin_package(
 #############
 
 install(PROGRAMS
-   scripts/ik_pick_and_place_demo.py
+   scripts/*.py
    DESTINATION ${CATKIN_PACKAGE_BIN_DESTINATION}
 )
 
