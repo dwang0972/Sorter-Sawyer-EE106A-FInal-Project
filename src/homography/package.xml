@@ -49,25 +49,14 @@
   <!-- Use doc_depend for packages you need only for building documentation: -->
   <!--   <doc_depend>doxygen</doc_depend> -->
   <buildtool_depend>catkin</buildtool_depend>
+
   <build_depend>rospy</build_depend>
-  <build_depend>ar_track_alvar</build_depend>
-  <build_depend>ar_track_alvar_msgs</build_depend>
-  <build_depend>message_generation</build_depend>
-  <build_depend>intera_interface</build_depend>
-  <build_depend>intera_core_msgs</build_depend>
   <build_depend>geometry_msgs</build_depend>
-  <build_depend>sensor_msgs</build_depend>
-  <build_export_depend>rospy</build_export_depend>
-  <build_export_depend>ar_track_alvar</build_export_depend>
-  <build_export_depend>ar_track_alvar_msgs</build_export_depend>
+  <build_depend>object_detection</build_depend>
+
   <exec_depend>rospy</exec_depend>
-  <exec_depend>ar_track_alvar</exec_depend>
-  <exec_depend>ar_track_alvar_msgs</exec_depend>
-  <exec_depend>message_runtime</exec_depend>
-  <exec_depend>intera_interface</exec_depend>
-  <exec_depend>intera_core_msgs</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
-  <exec_depend>sensor_msgs</exec_depend>
+  <exec_depend>object_detection</exec_depend>
 
 
   <!-- The export tag contains other, unspecified, tags -->

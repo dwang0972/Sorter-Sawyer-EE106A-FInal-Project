@@ -1,0 +1,4 @@
+# An empty request
+---
+# A response containing image data
+ar_track_alvar_msgs/AlvarMarkers marker

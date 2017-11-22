@@ -10,13 +10,25 @@
   <arg name="marker_margin" default="2" />
   <arg name="frame_id" default="/head_camera" />
 
-  <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
+  <arg name="marker_type" default="9" />
+
+
+  <param name="marker_type" value="$(arg marker_type)" />
+
+  <node name="ar_track_alvar_alex" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
 
 
   <node name="pnp_srv" pkg="baxter_pnp" type="pnp_srv.py" respawn="false" output="screen">
     <param name="hover_distance" value="0.1" />
   </node>
-  <node name="ar_srv" pkg="homography" type="ar_srv.py"  respawn="false" output="screen" />
+  <node name="ar_srv" pkg="ar_marker" type="ar_srv.py"  respawn="false" output="screen" />
+
+  <node name="circle_detection" pkg="object_detection" type="circle_srv.py" respawn="false" output="screen">
+    <param name="image_topic" value="$(arg cam_image_topic)" />
+    <param name="image_frame" value="$(arg frame_id)" />
+    <param name="cam_info_topic" value="$(arg cam_info_topic)" />
+  </node>
+
   <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen" />
 
 </launch>
