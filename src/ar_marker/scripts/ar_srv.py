@@ -51,7 +51,7 @@ class ArService:
     pose.header = marker.header
     pose.header.stamp = rospy.Time(0)
     
-    self.listener.waitForTransform(request.frame, pose.header.frame, rospy.Time.now(), rospy.Duration(3.0))
+    self.listener.waitForTransform(request.frame, pose.header.frame_id, rospy.Time(0), rospy.Duration(3.0))
     response.pose = self.listener.transformPose(request.frame, pose)
     
     return response

@@ -14,18 +14,23 @@ find_package(catkin REQUIRED COMPONENTS
   geometry_msgs
   intera_core_msgs
   intera_interface
+  moveit_core
+  moveit_msgs
   sensor_msgs
 )
 
 add_service_files(
   FILES
+  JointMovement.srv
   PickAndPlace.srv
+  PositionMovement.srv
 )
 
 generate_messages(
   DEPENDENCIES
   geometry_msgs
   intera_core_msgs
+  moveit_msgs
   sensor_msgs
 )
 
@@ -43,6 +48,8 @@ catkin_package(
   geometry_msgs
   intera_core_msgs
   intera_interface
+  moveit_core
+  moveit_msgs
   sensor_msgs
 )
 

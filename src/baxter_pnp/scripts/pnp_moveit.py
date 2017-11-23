@@ -23,16 +23,23 @@ from std_msgs.msg import (
     Empty,
 )
 
-from intera_core_msgs.srv import (
-    SolvePositionIK,
-    SolvePositionIKRequest,
+import moveit_commander
+from moveit_msgs.msg import (
+    DisplayTrajectory
 )
 
 from sensor_msgs.msg import JointState
 
 class PnPService:
     def __init__(self):
-        rospy.init_node("pick_and_place_node", log_level=rospy.DEBUG)
+        moveit_commander.roscpp_initialize(sys.argv)
+        rospy.init_node("pick_and_place_moveit", log_level=rospy.DEBUG)
+
+        self.robot = moveit_commander.RobotCommander()
+        self.group = moveit_commander.MoveGroupCommander("right_arm")
+        self.group.clear_pose_targets()
+        self.group.allow_replanning(True)
+        rospy.logdebug(self.group.get_current_joint_values())
 
         self._hover_distance = rospy.get_param("~hover_distance", 0.4)
         self._limb_name = rospy.get_param("~limb", 'right')
@@ -43,10 +50,6 @@ class PnPService:
             rospy.logerr("Gripper error")
         else:
             rospy.logdebug("Gripper OK")
-
-        self._iksvc_name = "ExternalTools/" + self._limb_name + "/PositionKinematicsNode/IKService"
-        rospy.wait_for_service(self._iksvc_name, 5.0)
-        self._iksvc = rospy.ServiceProxy(self._iksvc_name, SolvePositionIK)
 
         # Enable the robot
         _rs = intera_interface.RobotEnable(intera_interface.CHECK_VERSION)
@@ -141,67 +144,10 @@ class PnPService:
 
 
     def ik_request(self, pose):
-        hdr = Header(stamp=rospy.Time.now(), frame_id='base')
-        ikreq = SolvePositionIKRequest()
-        ikreq.pose_stamp.append(PoseStamped(header=hdr, pose=pose))
-        ikreq.tip_names.append('right_hand')
+        self.group.set_pose_target(pose)
 
-
-        # NOT WORKING
-
-        '''
-        ikreq.seed_mode = ikreq.SEED_USER
-        seed = JointState()
-        seed.name = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
-                         'right_j4', 'right_j5', 'right_j6']
-        seed.position = [-2.7, 0.12, -1.4, -1, 1.3, 1.6, 4.6]
-        ikreq.seed_angles.append(seed)
-
-        # Once the primary IK task is solved, the solver will then try to bias the
-        # the joint angles toward the goal joint configuration. The null space is 
-        # the extra degrees of freedom the joints can move without affecting the
-        # primary IK task.
-        ikreq.use_nullspace_goal.append(True)
-        # The nullspace goal can either be the full set or subset of joint angles
-        goal = JointState()
-        goal.name = ['right_j0', 'right_j1']
-        goal.position = [-2.7, 0.12]
-        ikreq.nullspace_goal.append(goal)
-        ikreq.nullspace_gain.append(0.4)
-        '''
-
-        try:
-            rospy.wait_for_service(self._iksvc_name, 5)
-            resp = self._iksvc(ikreq)
-        except (rospy.ServiceException, rospy.ROSException), e:
-            rospy.logerr("Service call failed: %s" % (e,))
-            return False
-        
-        # Check if result valid, and type of seed ultimately used to get solution
-        # convert rospy's string representation of uint8[]'s to int's
-        rospy.logdebug("IKService response: \n{0}".format(resp))
-
-        # Check if result valid, and type of seed ultimately used to get solution
-        # convert rospy's string representation of uint8[]'s to int's
-        limb_joints = {}
-        if (resp.result_type[0] != resp.IK_FAILED):
-            # Format solution into Limb API-compatible dictionary
-            limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-            rospy.logdebug("Joints:\n{0}".format(resp.joints[0].name))
-            rospy.logdebug("IK Joint Solution:\n{0}".format(limb_joints))
-            rospy.logdebug("------------------")
-        else:
-            rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-            return False
-        return limb_joints
-
-    def _guarded_move_to_joint_position(self, joint_angles):
-        if joint_angles:
-            self._limb.move_to_joint_positions(joint_angles)
-            return True
-        else:
-            rospy.logerr("No Joint Angles provided for move_to_joint_positions. Staying put.")
-            return False
+    def _guarded_move_to_joint_position(self):
+        iself.group.go()
 
     def gripper_open(self):
         self._gripper.open()
@@ -219,9 +165,9 @@ class PnPService:
         approach.position.z = approach.position.z + self._hover_distance
         rospy.logdebug("Approach: \n{0}".format(approach))
         
-        joint_angles = self.ik_request(approach)
+        self.ik_request(approach)
 
-        return self._guarded_move_to_joint_position(joint_angles)
+        return self._guarded_move_to_joint_position()
 
     def _retract(self):
         # retrieve current pose from endpoint
@@ -236,40 +182,62 @@ class PnPService:
         ik_pose.orientation.w = current_pose['orientation'].w
         rospy.logdebug("Retract: \n{0}".format(ik_pose))
 
-        joint_angles = self.ik_request(ik_pose)
+        self.ik_request(ik_pose)
 
         # servo up from current pose
-        return self._guarded_move_to_joint_position(joint_angles)
+        return self._guarded_move_to_joint_position()
 
     def _servo_to_pose(self, pose):
         # servo down to release
         rospy.logdebug("Move to pose: \n{0}".format(pose))
         
-        joint_angles = self.ik_request(pose)
+        self.ik_request(pose)
 
-        return self._guarded_move_to_joint_position(joint_angles)
+        return self._guarded_move_to_joint_position()
 
 
     def move_to_position(self, request):
         response = PositionMovementResponse()
 
-        joint_angles = self.ik_request(request.pose)
+        print(self.group.get_current_pose())
+        print(request.pose)
+
+        self.group.set_pose_target(request.pose)
+        self.group.go()
+
+        '''
+        plan1 = self.group.plan()
+
+        rospy.sleep(2)
+
+        display_trajectory = DisplayTrajectory()
+
+        display_trajectory.trajectory_start = self.robot.get_current_state()
+        display_trajectory.trajectory.append(plan1)
+        self.display_trajectory_publisher.publish(display_trajectory)
+
+        rospy.sleep(2)
+        '''
+
+        '''
         if not self._guarded_move_to_joint_position(joint_angles):
             rospy.logerr("Can't move to position")
             response.status = False
         else:
             response.status = True
+        '''
+
+        #self.group.clear_pose_targets()
         return response
 
     def move_to_joint(self, request):
         response = JointMovementResponse()
 
         joint_angles = dict(zip(request.joint_state.name, request.joint_state.position))
-        if not self._guarded_move_to_joint_position(joint_angles):
-            rospy.logerr("Can't move to position")
-            response.status = False
-        else:
-            response.status = True
+        rospy.logdebug(self.group.get_current_joint_values())
+        rospy.logdebug(request.joint_state.position)
+        self.group.set_joint_value_target(request.joint_state.position)
+        self.group.go()
         return response
 
 

@@ -60,30 +60,41 @@ class CircleDetectionService:
         self.pinhole_camera.fromCameraInfo(message)
 
 
+    def color_filter(self, img, lower, upper):
+        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
+
+        lower_range = np.array(lower, dtype=np.uint8)
+        upper_range = np.array(upper, dtype=np.uint8)
+
+        mask = cv2.inRange(hsv, lower_range, upper_range)
+        return cv2.bitwise_and(hsv, hsv, mask=mask)
+
 
     def detect_circles(self, img):
-        cv2.medianBlur(img, 5)
-        img = cv2.cvtColor(img,cv2.COLOR_BGRA2GRAY)
-        circles = cv2.HoughCircles(img, cv2.cv.CV_HOUGH_GRADIENT,1,100,
-                                param1=200,param2=40,minRadius=10,maxRadius=0)
+        #cv2.medianBlur(img, 5)
 
-        rospy.logdebug("Circles: {0}".format(circles))
+        #img = self.color_filter(img, [0, 20, 100], [50, 200, 255])
 
-        '''
-        circles_to_draw = np.uint16(np.around(circles))
+        gray = cv2.cvtColor(img, cv2.COLOR_BGRA2GRAY)
+        circles = cv2.HoughCircles(gray, cv2.cv.CV_HOUGH_GRADIENT,1,100,
+                                param1=200,param2=30,minRadius=0,maxRadius=0)
 
-        for i in circles_to_draw[0, :]:
-            cv2.circle(img, (i[0], i[1]), i[2], (0,255,0), 2)
-            cv2.circle(img, (i[0], i[1]), 2, (0,0,255), 3)
+        #rospy.logdebug("Circles: {0}".format(circles))
+
+        if circles is not None:
+            circles_to_draw = np.uint16(np.around(circles))
+
+            for i in circles_to_draw[0, :]:
+                cv2.circle(img, (i[0], i[1]), i[2], (0,255,0), 2)
+                cv2.circle(img, (i[0], i[1]), 2, (0,0,255), 3)
+
         cv2.imshow('circles', img)
-        cv2.waitKey()
-        '''
+        cv2.waitKey(100)
 
         return circles
 
 
     def callback(self, data):
-        print("Received image")
         try:
             cv_image = self.bridge.imgmsg_to_cv2(data, "bgra8")
         except CvBridgeError as e:
@@ -96,6 +107,9 @@ class CircleDetectionService:
     def getCirclePositions(self, request):
         response = ObjectPosesResponse()
 
+        if self.circles is None:
+            return response
+
         if len(self.circles) == 0:
             return response
 
@@ -103,6 +117,8 @@ class CircleDetectionService:
         marker_pose_request = ArMarkerPoseRequest(frame=self.frame, marker_type=self.marker_type)
         marker_pose_response = self.marker_pose_srv(marker_pose_request)
         marker_pose = marker_pose_response.pose
+        if marker_pose is None:
+            return response
 
         for c in self.circles[0, :]:
             ray = self.pinhole_camera.projectPixelTo3dRay((c[0], c[1]))
