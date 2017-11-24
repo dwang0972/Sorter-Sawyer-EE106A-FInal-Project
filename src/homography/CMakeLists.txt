@@ -4,6 +4,7 @@ project(homography)
 find_package(catkin REQUIRED COMPONENTS
   rospy
   ar_marker
+  baxter_pnp
   geometry_msgs
   object_detection
   sensor_msgs
@@ -13,6 +14,7 @@ catkin_package(
   CATKIN_DEPENDS
   rospy
   ar_marker
+  baxter_pnp
   geometry_msgs
   object_detection
   sensor_msgs

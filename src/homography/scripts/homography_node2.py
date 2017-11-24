@@ -65,26 +65,29 @@ class Homography:
         rospy.wait_for_service('move_to_joint', 5)
         self.joint_srv = rospy.ServiceProxy('move_to_joint', JointMovement)
 
+        # Head Service
+        self.head_srv = rospy.ServiceProxy("move_head", HeadMovement)
+
     def move_to_start(self):
-        starting_joint_angles = {'right_j0': -2.7097744140625,
-                             'right_j1': 0.120755859375,
-                             'right_j2': -1.40407421875,
-                             'right_j3': -1.0929814453125,
-                             'right_j4': 1.3393115234375,
-                             'right_j5': 1.6684326171875,
-                             'right_j6': 4.5927880859375}
+        starting_joint_angles = {'right_j0': 1.3998037109375,
+                             'right_j1': 0.2002529296875,
+                             'right_j2': -2.65833203125,
+                             'right_j3': 0.1194951171875,
+                             'right_j4': 0.3614853515625,
+                             'right_j5': -1.7947021484375,
+                             'right_j6': 3.0793447265625}
 
         starting_pose = Pose(
             position=Point(
-                x=-0.0693072626854,
-                y=-0.787608264825,
-                z=0.320786757036
+                x=-0.000735619,
+                y=0.855682,
+                z=0.205539
             ),
             orientation=Quaternion(
-                x=-0.964505139643,
-                y=0.26332012058,
-                z=0.0195351258605,
-                w=0.00327544766135
+                x=0.997216,
+                y=-0.0447665,
+                z=-0.0411083,
+                w=0.0432003
             )
         )
 
@@ -93,21 +96,28 @@ class Homography:
         joint_state = JointState(header=Header(frame_id='/base', stamp=rospy.Time(0)), name=starting_joint_angles_names, position=starting_joint_angles_positions)
 
         #request = JointMovementRequest(joint_state=joint_state)
+        #rospy.wait_for_service('move_to_joint', 5)
+        #return self.joint_srv(request)
 
         request = PositionMovementRequest(pose=starting_pose)
-
-        rospy.wait_for_service('move_to_position', 5)
+        rospy.wait_for_service("move_to_position", 5)
         return self.position_srv(request)
 
 
     def execute_move_to_start(self):
         rospy.logdebug("Moving to starting point...")
+
         while not rospy.is_shutdown():
             response = self.move_to_start()
             if response.status:
                 rospy.loginfo("Robot in starting point")
+                rospy.sleep(1)
                 break
             self.rate.sleep()
+
+        request = HeadMovementRequest(angle=0)
+        rospy.wait_for_service('move_head')
+        self.head_srv(request)
 
     def execute_move_above_ar_tag(self):
         rospy.logdebug("Looking for AR tag...")
@@ -120,6 +130,7 @@ class Homography:
                 rospy.logdebug("No AR tag found")
                 continue
 
+            rospy.logdebug("Found AR tag at: \n{0}".format(marker_pose.pose))
             marker_pose.pose.position.z += 0.4
             marker_pose.pose.orientation = orientation
 
@@ -128,6 +139,7 @@ class Homography:
             move_response = self.position_srv(move_request)
             if move_response.status:
                 rospy.loginfo("Robot above AR tag")
+                rospy.sleep(1)
                 break
 
             self.rate.sleep()
@@ -149,13 +161,17 @@ class Homography:
 
                 pick = copy.deepcopy(pose)
                 place = copy.deepcopy(pose)
-                place.pose.position.y += 0.5
+                place.pose.position.x -= 0.5
+                place.pose.position.y += 0.2
+                place.pose.position.z += 0.05
 
                 pnp_request = PickAndPlaceRequest()
                 pnp_request.pick = pick
                 pnp_request.place = place
                 rospy.wait_for_service('pick_and_place', 5.0)
                 self.pnp_srv(pnp_request)
+                rospy.sleep(1)
+                break
 
             else:
                 rospy.logdebug("No object found")
@@ -164,9 +180,10 @@ class Homography:
 
 
     def run(self):
-        self.execute_move_to_start()
-        self.execute_move_above_ar_tag()
-        self.execute_pick_and_place()
+        while not rospy.is_shutdown():
+            self.execute_move_to_start()
+            #self.execute_move_above_ar_tag()
+            self.execute_pick_and_place()
 
         
 

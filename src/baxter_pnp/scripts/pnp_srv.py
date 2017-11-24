@@ -34,7 +34,7 @@ class PnPService:
     def __init__(self):
         rospy.init_node("pick_and_place_node", log_level=rospy.DEBUG)
 
-        self._hover_distance = rospy.get_param("~hover_distance", 0.4)
+        self._hover_distance = rospy.get_param("~hover_distance", 0.2)
         self._limb_name = rospy.get_param("~limb", 'right')
         self._limb = intera_interface.Limb(self._limb_name)
 
@@ -43,6 +43,8 @@ class PnPService:
             rospy.logerr("Gripper error")
         else:
             rospy.logdebug("Gripper OK")
+
+        self._head = intera_interface.Head()
 
         self._iksvc_name = "ExternalTools/" + self._limb_name + "/PositionKinematicsNode/IKService"
         rospy.wait_for_service(self._iksvc_name, 5.0)
@@ -57,6 +59,7 @@ class PnPService:
         rospy.Service("pick_and_place", PickAndPlace, self.execute)
         rospy.Service("move_to_position", PositionMovement, self.move_to_position)
         rospy.Service("move_to_joint", JointMovement, self.move_to_joint)
+        rospy.Service("move_head", HeadMovement, self.move_head)
         rospy.logdebug("PNP Ready")
 
     def execute(self, request):
@@ -75,35 +78,30 @@ class PnPService:
         status = self.gripper_open()
         if not status:
             rospy.logerr("Gripper open error, moving back to starting point")
-            self.move_to_start()
             return
         
         # servo above pose
         status = self._approach(pose)
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
-            self.move_to_start()
             return
         
         # servo to pose
         status = self._servo_to_pose(pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
-            self.move_to_start()
             return
         
         # close gripper
         status = self.gripper_close()
         if not status:
             rospy.logerr("Gripper close error, moving back to starting point")
-            self.move_to_start()
             return
         
         # retract to clear object
         status = self._retract()
         if not status:
             rospy.logerr("Retract error, moving back to starting point")
-            self.move_to_start()
             return
 
     def place(self, pose):
@@ -111,28 +109,24 @@ class PnPService:
         status = self._approach(pose)
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
-            self.move_to_start()
             return
         
         # servo to pose
         status = self._servo_to_pose(pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
-            self.move_to_start()
             return
 
         # open the gripper
         status = self.gripper_open()
         if not status:
             rospy.logerr("Gripper open error, moving back to starting point")
-            self.move_to_start()
             return
         
         # retract to clear object
         status = self._retract()
         if not status:
             rospy.logerr("Retract error, moving back to starting point")
-            self.move_to_start()
             return
 
     def run(self):
@@ -244,6 +238,8 @@ class PnPService:
     def _servo_to_pose(self, pose):
         # servo down to release
         rospy.logdebug("Move to pose: \n{0}".format(pose))
+
+        pose.position.z += 0.1
         
         joint_angles = self.ik_request(pose)
 
@@ -272,6 +268,18 @@ class PnPService:
             response.status = True
         return response
 
+
+    def move_head(self, request):
+        response = HeadMovementResponse()
+        angle = request.angle
+        rate = rospy.Rate(100)
+        while (not rospy.is_shutdown() and
+           not (abs(self._head.pan() - angle) <= intera_interface.HEAD_PAN_ANGLE_TOLERANCE)):
+            self._head.set_pan(angle, speed=0.3, timeout=0)
+            print(self._head.pan())
+            rate.sleep()
+
+        return response
 
 
 

@@ -34,6 +34,7 @@
   <build_depend>moveit_core</build_depend>
   <build_depend>moveit_msgs</build_depend>
   <build_depend>sensor_msgs</build_depend>
+  <build_depend>std_msgs</build_depend>
 
   <run_depend>rospy</run_depend>
   <run_depend>rospack</run_depend>
@@ -49,6 +50,7 @@
   <run_depend>moveit_core</run_depend>
   <run_depend>moveit_msgs</run_depend>
   <run_depend>sensor_msgs</run_depend>
+  <run_depend>std_msgs</run_depend>
  
   <export>
     <gazebo_ros gazebo_model_path="${prefix}/models"/>

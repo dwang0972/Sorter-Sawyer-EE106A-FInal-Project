@@ -12,7 +12,7 @@
   <arg unless="$(arg info)" name="command_args" value="" />
   <arg     if="$(arg info)" name="command_args" value="--debug" />
 
-  <arg name="allow_trajectory_execution" default="false"/>
+  <arg name="allow_trajectory_execution" default="true"/>
   <arg name="max_safe_path_cost" default="1"/>
   <arg name="jiggle_fraction" default="0.05" />
   <arg name="publish_monitored_planning_scene" default="true"/>
@@ -37,8 +37,9 @@
     <param name="max_safe_path_cost" value="$(arg max_safe_path_cost)"/>
     <param name="jiggle_fraction" value="$(arg jiggle_fraction)" />
 
-    <param name="capabilities" value="move_group/MoveGroupKinematicsService" /> -->
-      <!--move_group/MoveGroupCartesianPathService
+    <param name="capabilities" value="
+              move_group/MoveGroupKinematicsService
+              move_group/MoveGroupCartesianPathService
               move_group/MoveGroupExecuteService
               move_group/MoveGroupKinematicsService
               move_group/MoveGroupMoveAction
@@ -46,7 +47,7 @@
               move_group/MoveGroupPlanService
               move_group/MoveGroupQueryPlannersService
               move_group/MoveGroupStateValidationService
-              " /> -->
+              " />
 
     <!-- Publish the planning scene of the physical robot so that rviz plugin can know actual robot -->
     <param name="planning_scene_monitor/publish_planning_scene" value="$(arg publish_monitored_planning_scene)" />
@@ -59,7 +60,7 @@
 
 
 
-  <arg name="marker_size" default="13" />
+  <arg name="marker_size" default="15.5" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/io/internal_camera/head_camera/image_raw" />
@@ -78,15 +79,15 @@
   <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
 
 
-  <node name="pnp_srv" pkg="baxter_pnp" type="pnp_moveit.py" respawn="false" output="screen" args="joint_states:=/robot/joint_states">
-    <param name="hover_distance" value="0.1" />
+  <node name="pnp_srv" pkg="baxter_pnp" type="pnp_srv.py" respawn="false" output="screen" args="joint_states:=/robot/joint_states">
+    <param name="hover_distance" value="0.4" />
   </node>
   <node name="ar_srv" pkg="ar_marker" type="ar_srv.py"  respawn="false" output="screen" />
 
   <node name="circle_detection" pkg="object_detection" type="circle_srv.py" respawn="false" output="screen">
-    <param name="image_topic" value="/io/internal_camera/right_hand_camera/image_raw" />
-    <param name="image_frame" value="/right_hand_camera" />
-    <param name="cam_info_topic" value="/io/internal_camera/right_hand_camera/camera_info" />
+    <param name="image_topic" value="/io/internal_camera/head_camera/image_raw" />
+    <param name="image_frame" value="/head_camera" />
+    <param name="cam_info_topic" value="/io/internal_camera/head_camera/camera_info" />
   </node>
 
   <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen" />

@@ -17,10 +17,12 @@ find_package(catkin REQUIRED COMPONENTS
   moveit_core
   moveit_msgs
   sensor_msgs
+  std_msgs
 )
 
 add_service_files(
   FILES
+  HeadMovement.srv
   JointMovement.srv
   PickAndPlace.srv
   PositionMovement.srv
@@ -32,6 +34,7 @@ generate_messages(
   intera_core_msgs
   moveit_msgs
   sensor_msgs
+  std_msgs
 )
 
 catkin_package(
@@ -51,6 +54,7 @@ catkin_package(
   moveit_core
   moveit_msgs
   sensor_msgs
+  std_msgs
 )
 
 

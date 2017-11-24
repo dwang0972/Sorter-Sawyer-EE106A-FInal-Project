@@ -36,7 +36,10 @@ class PnPService:
         rospy.init_node("pick_and_place_moveit", log_level=rospy.DEBUG)
 
         self.robot = moveit_commander.RobotCommander()
+        self.scene = moveit_commander.PlanningSceneInterface()
         self.group = moveit_commander.MoveGroupCommander("right_arm")
+
+
         self.group.clear_pose_targets()
         self.group.allow_replanning(True)
         rospy.logdebug(self.group.get_current_joint_values())
@@ -60,6 +63,7 @@ class PnPService:
         rospy.Service("pick_and_place", PickAndPlace, self.execute)
         rospy.Service("move_to_position", PositionMovement, self.move_to_position)
         rospy.Service("move_to_joint", JointMovement, self.move_to_joint)
+        rospy.Service("move_head", HeadMovement, self.move_head)
         rospy.logdebug("PNP Ready")
 
     def execute(self, request):
@@ -147,7 +151,7 @@ class PnPService:
         self.group.set_pose_target(pose)
 
     def _guarded_move_to_joint_position(self):
-        iself.group.go()
+        self.group.go()
 
     def gripper_open(self):
         self._gripper.open()
@@ -203,7 +207,9 @@ class PnPService:
         print(request.pose)
 
         self.group.set_pose_target(request.pose)
-        self.group.go()
+        self.group.plan()
+        self.group.clear_pose_target()
+        #self.group.go()
 
         '''
         plan1 = self.group.plan()
@@ -236,8 +242,30 @@ class PnPService:
         joint_angles = dict(zip(request.joint_state.name, request.joint_state.position))
         rospy.logdebug(self.group.get_current_joint_values())
         rospy.logdebug(request.joint_state.position)
+        
         self.group.set_joint_value_target(request.joint_state.position)
-        self.group.go()
+        self.group.plan()
+        #self.group.go()
+        
+        return response
+
+    def move_head(self, request):
+        response = HeadMovementResponse()
+        angle = request.angle
+        rate = rospy.Rate(100)
+        while (not rospy.is_shutdown() and
+           not (abs(self._head.pan() - angle) <= intera_interface.HEAD_PAN_ANGLE_TOLERANCE)):
+            self._head.set_pan(angle, speed=0.3, timeout=0)
+            print(self._head.pan())
+            rate.sleep()
+
+        return response
+
+    def add_table(self, request):
+        response = TablePositionResponse()
+        table_z = response.table_z
+        collision_object = moveit_msgs.msg.CollisionObject()
+        collision_object
         return response
 
 
