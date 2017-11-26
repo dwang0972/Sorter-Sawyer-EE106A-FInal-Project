@@ -66,7 +66,12 @@ class Homography:
         self.joint_srv = rospy.ServiceProxy('move_to_joint', JointMovement)
 
         # Head Service
+        rospy.wait_for_service('move_head', 5)
         self.head_srv = rospy.ServiceProxy("move_head", HeadMovement)
+
+        # Throw service
+        rospy.wait_for_service('throw', 5)
+        self.throw_srv = rospy.ServiceProxy('throw', Throw)
 
     def move_to_start(self):
         starting_joint_angles = {'right_j0': 1.5087646484375,

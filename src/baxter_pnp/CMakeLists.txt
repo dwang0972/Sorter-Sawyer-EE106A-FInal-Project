@@ -26,6 +26,7 @@ add_service_files(
   JointMovement.srv
   PickAndPlace.srv
   PositionMovement.srv
+  Throw.srv
 )
 
 generate_messages(
