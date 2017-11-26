@@ -11,7 +11,7 @@ class ArService:
   #Callback for when an image is received
   def markerReceived(self, message):
     #Save the image in the instance variable
-    rospy.logdebug("Marker found with ids: {0}".format([m.id for m in message.markers]))
+    #rospy.logdebug("Marker found with ids: {0}".format([m.id for m in message.markers]))
     self.lastMarker = message
 
     #Print an alert to the console
@@ -35,7 +35,7 @@ class ArService:
       return response
 
     marker = None
-
+    
     if request.marker_type == 0:
       marker = self.lastMarker.markers[0]
     else:

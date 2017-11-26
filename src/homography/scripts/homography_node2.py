@@ -54,7 +54,7 @@ class Homography:
         self.object_pose_srv = rospy.ServiceProxy('circle_detection', ObjectPoses)
 
         # Pick and place Service
-        rospy.wait_for_service('pick_and_place', 20)
+        rospy.wait_for_service('pick_and_place', 5)
         self.pnp_srv = rospy.ServiceProxy('pick_and_place', PickAndPlace)
 
         # Movement Service
@@ -66,16 +66,21 @@ class Homography:
         self.joint_srv = rospy.ServiceProxy('move_to_joint', JointMovement)
 
         # Head Service
+        rospy.wait_for_service('move_head', 5)
         self.head_srv = rospy.ServiceProxy("move_head", HeadMovement)
 
+        # Throw service
+        rospy.wait_for_service('throw', 5)
+        self.throw_srv = rospy.ServiceProxy('throw', Throw)
+
     def move_to_start(self):
-        starting_joint_angles = {'right_j0': 1.3998037109375,
-                             'right_j1': 0.2002529296875,
-                             'right_j2': -2.65833203125,
-                             'right_j3': 0.1194951171875,
-                             'right_j4': 0.3614853515625,
-                             'right_j5': -1.7947021484375,
-                             'right_j6': 3.0793447265625}
+        starting_joint_angles = {'right_j0': 1.5087646484375,
+                             'right_j1': -0.11942578125,
+                             'right_j2': -3.0390751953125,
+                             'right_j3': 0.047236328125,
+                             'right_j4': -2.9739267578125,
+                             'right_j5': 0.0444990234375,
+                            'right_j6': -0.005763671875}
 
         starting_pose = Pose(
             position=Point(
@@ -95,13 +100,13 @@ class Homography:
         starting_joint_angles_positions = starting_joint_angles.values()
         joint_state = JointState(header=Header(frame_id='/base', stamp=rospy.Time(0)), name=starting_joint_angles_names, position=starting_joint_angles_positions)
 
-        #request = JointMovementRequest(joint_state=joint_state)
-        #rospy.wait_for_service('move_to_joint', 5)
-        #return self.joint_srv(request)
+        request = JointMovementRequest(joint_state=joint_state)
+        rospy.wait_for_service('move_to_joint', 5)
+        return self.joint_srv(request)
 
-        request = PositionMovementRequest(pose=starting_pose)
-        rospy.wait_for_service("move_to_position", 5)
-        return self.position_srv(request)
+        #request = PositionMovementRequest(pose=starting_pose)
+        #rospy.wait_for_service("move_to_position", 5)
+        #return self.position_srv(request)
 
 
     def execute_move_to_start(self):
@@ -149,32 +154,33 @@ class Homography:
             rospy.wait_for_service('circle_detection', 5.0)
             object_pose_request = ObjectPosesRequest(frame='/base')
             object_pose_response = self.object_pose_srv(object_pose_request)
-            poses = object_pose_response.poses
+            pick_poses = object_pose_response.poses
+
+            rospy.wait_for_service('marker_pose', 5.0)
+            marker_pose_request = ArMarkerPoseRequest(frame='/base', marker_type=10)
+            marker_pose_response = self.marker_pose_srv(marker_pose_request)
+            place_pose = marker_pose_response.pose
 
             rospy.logdebug("Circle detection response: {0}".format(object_pose_response))
-            if len(poses) > 0 and poses[0].pose.position.x != 0:
-                pose = poses[0]
+            if len(pick_poses) > 0 and pick_poses[0].pose.position.x != 0 and place_pose is not None and place_pose.pose.position.x != 0:
+                pick_pose = pick_poses[0]
+                pick_pose.pose.orientation = orientation
+                rospy.logdebug("Pick detected: \n{0}".format(pick_pose))
+                
+                place_pose.pose.orientation = orientation
+                rospy.logdebug("Place detected: \n{0}".format(place_pose))
 
-                rospy.logdebug("Object detected: \n{0}".format(pose))
-
-                pose.pose.orientation = orientation
-
-                pick = copy.deepcopy(pose)
-                place = copy.deepcopy(pose)
-                place.pose.position.x -= 0.5
-                place.pose.position.y += 0.2
-                place.pose.position.z += 0.05
 
                 pnp_request = PickAndPlaceRequest()
-                pnp_request.pick = pick
-                pnp_request.place = place
+                pnp_request.pick = pick_pose
+                pnp_request.place = place_pose
                 rospy.wait_for_service('pick_and_place', 5.0)
                 self.pnp_srv(pnp_request)
                 rospy.sleep(1)
                 break
 
             else:
-                rospy.logdebug("No object found")
+                rospy.logdebug("There was an error in the positions detection")
                 
             self.rate.sleep()
 

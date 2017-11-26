@@ -7,6 +7,7 @@ import argparse
 import struct
 import sys
 import copy
+from copy import deepcopy
 
 from baxter_pnp.srv import *
 
@@ -30,6 +31,9 @@ from intera_core_msgs.srv import (
 
 from sensor_msgs.msg import JointState
 
+from threading import Thread
+import time
+
 class PnPService:
     def __init__(self):
         rospy.init_node("pick_and_place_node", log_level=rospy.DEBUG)
@@ -37,6 +41,7 @@ class PnPService:
         self._hover_distance = rospy.get_param("~hover_distance", 0.2)
         self._limb_name = rospy.get_param("~limb", 'right')
         self._limb = intera_interface.Limb(self._limb_name)
+        self._limb.set_joint_position_speed(0.3)
 
         self._gripper = intera_interface.Gripper(self._limb_name)
         if self._gripper is None:
@@ -56,10 +61,12 @@ class PnPService:
         rospy.logdebug("Enabling robot... ")
         _rs.enable()
 
+
         rospy.Service("pick_and_place", PickAndPlace, self.execute)
         rospy.Service("move_to_position", PositionMovement, self.move_to_position)
         rospy.Service("move_to_joint", JointMovement, self.move_to_joint)
         rospy.Service("move_head", HeadMovement, self.move_head)
+        rospy.Service("throw", Throw, self.throw)
         rospy.logdebug("PNP Ready")
 
     def execute(self, request):
@@ -69,7 +76,8 @@ class PnPService:
         self.pick(request.pick.pose)
 
         rospy.logdebug("\nPlacing...")
-        self.place(request.place.pose)
+        #self.place(request.place.pose)
+        self.throw(None)
 
         return response
 
@@ -81,13 +89,13 @@ class PnPService:
             return
         
         # servo above pose
-        status = self._approach(pose)
+        status = self._approach(deepcopy(pose))
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
             return
         
         # servo to pose
-        status = self._servo_to_pose(pose)
+        status = self._servo_to_pose(deepcopy(pose))
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
             return
@@ -106,13 +114,15 @@ class PnPService:
 
     def place(self, pose):
         # servo above pose
-        status = self._approach(pose)
+        status = self._approach(deepcopy(pose))
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
             return
         
         # servo to pose
-        status = self._servo_to_pose(pose)
+        place_pose = deepcopy(pose)
+        place_pose.position.z += 0.05
+        status = self._servo_to_pose(place_pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
             return
@@ -192,6 +202,7 @@ class PnPService:
     def _guarded_move_to_joint_position(self, joint_angles):
         if joint_angles:
             self._limb.move_to_joint_positions(joint_angles)
+            rospy.sleep(1.0)
             return True
         else:
             rospy.logerr("No Joint Angles provided for move_to_joint_positions. Staying put.")
@@ -239,7 +250,7 @@ class PnPService:
         # servo down to release
         rospy.logdebug("Move to pose: \n{0}".format(pose))
 
-        pose.position.z += 0.1
+        pose.position.z += 0.08
         
         joint_angles = self.ik_request(pose)
 
@@ -280,6 +291,30 @@ class PnPService:
             rate.sleep()
 
         return response
+
+    def throw(self, request):
+        self._limb.set_joint_position_speed(1.0)
+
+        joint = 'right_j5'
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint) >= -2.9:
+            self._limb.set_joint_velocities({joint: -1})
+
+        timer = time.time()
+        done = False
+        while not rospy.is_shutdown():
+            #self._limb.set_joint_velocities({'right_j3': +20})
+            self._limb.set_joint_velocities({joint: +20})
+            if time.time() - timer >= 0.5 and not done:
+                Thread(target = self._gripper.open).start()
+                done = True
+                timer = time.time()
+            if time.time() - timer >= 0.5 and done:
+                self._limb.set_joint_velocities({joint: +3})
+                break
+
+        self._limb.set_joint_position_speed(0.3)
+
+        return ThrowResponse()
 
 
 

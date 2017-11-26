@@ -87,13 +87,13 @@ class CircleDetectionService:
             c = max(cnts, key=cv2.contourArea)
             ((x, y), radius) = cv2.minEnclosingCircle(c)
 
-            rospy.logdebug("Min enclosing circle: {0}, {1}, {2}".format(x, y, radius))
+            #rospy.logdebug("Min enclosing circle: {0}, {1}, {2}".format(x, y, radius))
 
             M = cv2.moments(c)
 
             if M["m00"] != 0:
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
-                rospy.logdebug("Moment: {0}, {1}".format(center[0], center[1]))
+                #rospy.logdebug("Moment: {0}, {1}".format(center[0], center[1]))
             
                 # only proceed if the radius meets a minimum size
                 if radius > 5:
@@ -109,6 +109,7 @@ class CircleDetectionService:
 
     def detect_circles(self, img):
         #cv2.medianBlur(img, 5)
+<<<<<<< HEAD
         import copy
         # yellow mask
         yimg = copy.copy(img)
@@ -145,6 +146,18 @@ class CircleDetectionService:
 
         if maxCircle is not None:
             circles_to_draw = np.uint16(np.around(maxCircle))
+=======
+
+        img, mask = self.color_filter(img, [20, 80, 100], [80, 200, 255])
+        circles = self.find_contours(img, mask)
+
+        #circles = self.find_circles(img)
+        
+        '''
+        rospy.logdebug("Circles: {0}".format(circles))
+        if circles is not None:
+            circles_to_draw = np.uint16(np.around(circles))
+>>>>>>> 95f75e11b1bab66a5b4cdc51cec2d53c2b381633
 
             for i in circles_to_draw[0, :]:
                 cv2.circle(draw_img, (i[0], i[1]), i[2], (0,255,0), 2)
@@ -152,6 +165,7 @@ class CircleDetectionService:
 
         cv2.imshow('max circle', draw_img)
         key = cv2.waitKey(1) & 0xFF
+        '''
 
         return maxCircle
 
@@ -179,7 +193,7 @@ class CircleDetectionService:
         marker_pose_request = ArMarkerPoseRequest(frame=request.frame, marker_type=self.marker_type)
         marker_pose_response = self.marker_pose_srv(marker_pose_request)
         marker_pose = marker_pose_response.pose
-        if marker_pose is None:
+        if marker_pose is None or marker_pose.pose.position.x == 0:
             return response
 
         for c in self.circles[0, :]:
@@ -192,7 +206,7 @@ class CircleDetectionService:
             #transformed_pose.pose.position.x += 0.05
             #transformed_pose.pose.position.y += 0.05
 
-            rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
+            #rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
             
             response.poses.append(transformed_pose)        
 
@@ -201,35 +215,35 @@ class CircleDetectionService:
     def ray_to_3dpoint(self, ray, marker_pose, base_frame):
         point = Point()
 
-        rospy.logdebug("Ray: {0}".format(ray))
+        #rospy.logdebug("Ray: {0}".format(ray))
 
         self.listener.waitForTransform(base_frame, self.frame, rospy.Time(0), rospy.Duration(3.0))
         p, q = self.listener.lookupTransform(base_frame, self.frame, rospy.Time(0))
 
-        rospy.logdebug("Translation: {0}".format(p))
+        #rospy.logdebug("Translation: {0}".format(p))
 
         R = tf.transformations.quaternion_matrix(q)
 
-        rospy.logdebug("Rotation: {0}".format(R))
+        #rospy.logdebug("Rotation: {0}".format(R))
 
-        rospy.logdebug("AR tag: {0}".format(marker_pose.pose.position))
+        #rospy.logdebug("AR tag: {0}".format(marker_pose.pose.position))
 
         rray = Vector3Stamped(header=Header(frame_id=self.frame, stamp=rospy.Time(0)), vector=Vector3(x=ray[0], y=ray[1], z=ray[2]))
         tray = self.listener.transformVector3(base_frame, rray)
 
-        rospy.logdebug("True transformed ray: {0}".format(tray.vector))
+        #rospy.logdebug("True transformed ray: {0}".format(tray.vector))
 
-        rospy.logdebug("Transformed ray: {0}".format(np.dot(R[:3, :3], np.array(ray))))
+        #rospy.logdebug("Transformed ray: {0}".format(np.dot(R[:3, :3], np.array(ray))))
 
         t = (marker_pose.pose.position.z - p[2]) / np.dot(R[:3, :3], np.array(ray))[2]
 
-        rospy.logdebug("Parameter t: {0}".format(t))
+        #rospy.logdebug("Parameter t: {0}".format(t))
 
         point.x = ray[0] * t
         point.y = ray[1] * t
         point.z = ray[2] * t
 
-        rospy.logdebug("Point in camera frame: {0}".format(point))
+        #rospy.logdebug("Point in camera frame: {0}".format(point))
 
         return point
 
