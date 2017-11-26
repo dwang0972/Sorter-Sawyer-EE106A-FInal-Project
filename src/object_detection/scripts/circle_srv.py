@@ -109,25 +109,51 @@ class CircleDetectionService:
 
     def detect_circles(self, img):
         #cv2.medianBlur(img, 5)
+        import copy
+        # yellow mask
+        yimg = copy.copy(img)
+        yimg, yellowMask = self.color_filter(yimg, [20, 80, 100], [80, 200, 255])
+        yellowCircle = self.find_contours(yimg, yellowMask)
+        rospy.logdebug("yellow circle " + str(yellowCircle))
+        yellowCircle = None
+        # #red mask
+        rimg = copy.copy(img)
+        rimg, redMask = self.color_filter(rimg, [0, 0, 0], [255, 100, 100])
+        redCircle = self.find_contours(rimg, redMask)
+        rospy.logdebug("red circle " + str(redCircle))
+        redCircle = None
+        maxCircle = np.asarray([[[0, 0, 0]]])
 
-        img, mask = self.color_filter(img, [20, 80, 100], [80, 200, 255])
-        circles = self.find_contours(img, mask)
+        existCount = 0
+        drawimgs = [yimg, rimg]
+        draw_img = drawimgs[0]
+        circles = [yellowCircle, redCircle]
+        for idx in range(circles.__len__()):
+            circ = circles[idx]
+            if circ is not None:
+                existCount += 1
+                maxCircle = circ
+                draw_img = drawimgs[idx]
+        if existCount > 1:
+            # maxCircle = max([yellowCircle, redCircle], key= lambda x: x[0][0][2])
+            for idx in range(circles.__len__()):
+                circ = circles[idx]
+                if maxCircle[0][0][2] < circ[0][0][2]:
+                    maxCircle = circ
+                    draw_img = drawimgs[idx]
+        rospy.logdebug("Max circle: {0}".format(maxCircle))
 
-        #circles = self.find_circles(img)
-        
-
-        rospy.logdebug("Circles: {0}".format(circles))
-        if circles is not None:
-            circles_to_draw = np.uint16(np.around(circles))
+        if maxCircle is not None:
+            circles_to_draw = np.uint16(np.around(maxCircle))
 
             for i in circles_to_draw[0, :]:
-                cv2.circle(img, (i[0], i[1]), i[2], (0,255,0), 2)
-                cv2.circle(img, (i[0], i[1]), 2, (0,0,255), 3)
+                cv2.circle(draw_img, (i[0], i[1]), i[2], (0,255,0), 2)
+                cv2.circle(draw_img, (i[0], i[1]), 2, (0,0,255), 3)
 
-        cv2.imshow('circles', img)
+        cv2.imshow('max circle', draw_img)
         key = cv2.waitKey(1) & 0xFF
 
-        return circles
+        return maxCircle
 
 
     def callback(self, data):
