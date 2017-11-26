@@ -1,66 +1,6 @@
 <launch>
 
-  <param name="robot_description" type="str" textfile="$(find sawyer_description)/urdf/sawyer.urdf" />
-
-  <include file="$(find sawyer_moveit_config)/launch/planning_context.launch" />
-
-  <arg name="debug" default="false" />
-  <arg unless="$(arg debug)" name="launch_prefix" value="" />
-  <arg     if="$(arg debug)" name="launch_prefix" value="gdb --ex run --args" />
-
-  <arg name="info" default="$(arg debug)" />  
-  <arg unless="$(arg info)" name="command_args" value="" />
-  <arg     if="$(arg info)" name="command_args" value="--debug" />
-
-  <arg name="allow_trajectory_execution" default="true"/>
-  <arg name="max_safe_path_cost" default="1"/>
-  <arg name="jiggle_fraction" default="0.05" />
-  <arg name="publish_monitored_planning_scene" default="true"/>
-
-  <include ns="move_group" file="$(find sawyer_moveit_config)/launch/planning_pipeline.launch.xml">
-    <arg name="pipeline" value="ompl" />
-  </include>
-
-  <include ns="move_group" file="$(find sawyer_moveit_config)/launch/trajectory_execution.launch.xml" if="$(arg allow_trajectory_execution)">
-    <arg name="moveit_controller_manager" value="sawyer" /> 
-    <arg name="moveit_manage_controllers" value="true" />
-  </include>
-
-  <include ns="move_group" file="$(find sawyer_moveit_config)/launch/sensor_manager.launch.xml" if="$(arg allow_trajectory_execution)">
-    <arg name="moveit_sensor_manager" value="sawyer" /> 
-  </include>
-
-  <node name="move_group" launch-prefix="$(arg launch_prefix)" pkg="moveit_ros_move_group" type="move_group" respawn="false" output="screen" args="joint_states:=/robot/joint_states $(arg command_args)">
-    <env name="DISPLAY" value="$(optenv DISPLAY :0)" />
-
-    <param name="allow_trajectory_execution" value="$(arg allow_trajectory_execution)"/>
-    <param name="max_safe_path_cost" value="$(arg max_safe_path_cost)"/>
-    <param name="jiggle_fraction" value="$(arg jiggle_fraction)" />
-
-    <param name="capabilities" value="
-              move_group/MoveGroupKinematicsService
-              move_group/MoveGroupCartesianPathService
-              move_group/MoveGroupExecuteService
-              move_group/MoveGroupKinematicsService
-              move_group/MoveGroupMoveAction
-              move_group/MoveGroupPickPlaceAction
-              move_group/MoveGroupPlanService
-              move_group/MoveGroupQueryPlannersService
-              move_group/MoveGroupStateValidationService
-              " />
-
-    <!-- Publish the planning scene of the physical robot so that rviz plugin can know actual robot -->
-    <param name="planning_scene_monitor/publish_planning_scene" value="$(arg publish_monitored_planning_scene)" />
-    <param name="planning_scene_monitor/publish_geometry_updates" value="$(arg publish_monitored_planning_scene)" />
-    <param name="planning_scene_monitor/publish_state_updates" value="$(arg publish_monitored_planning_scene)" />
-    <param name="planning_scene_monitor/publish_transforms_updates" value="$(arg publish_monitored_planning_scene)" />
-  </node>
-
-
-
-
-
-  <arg name="marker_size" default="15.5" />
+  <arg name="marker_size" default="15" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/io/internal_camera/head_camera/image_raw" />
@@ -76,15 +16,15 @@
 
   <param name="marker_type" value="$(arg marker_type)" />
 
-  <node name="ar_track_alvar" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
+  <node name="ar_track_alvar_alex" pkg="ar_track_alvar" type="individualMarkersNoKinect" respawn="false" output="screen" args="$(arg marker_size) $(arg max_new_marker_error) $(arg max_track_error) $(arg cam_image_topic) $(arg cam_info_topic) $(arg output_frame) $(arg max_frequency) $(arg marker_resolution) $(arg marker_margin)" />
 
+  <node name="ar_srv_alex" pkg="ar_marker" type="ar_srv.py"  respawn="false" output="screen" />
 
   <node name="pnp_srv" pkg="baxter_pnp" type="pnp_srv.py" respawn="false" output="screen" args="joint_states:=/robot/joint_states">
-    <param name="hover_distance" value="0.4" />
+    <param name="hover_distance" value="0.3" />
   </node>
-  <node name="ar_srv" pkg="ar_marker" type="ar_srv.py"  respawn="false" output="screen" />
 
-  <node name="circle_detection" pkg="object_detection" type="circle_srv.py" respawn="false" output="screen">
+  <node name="circle_detection_alex" pkg="object_detection" type="circle_srv.py" respawn="false" output="screen">
     <param name="image_topic" value="/io/internal_camera/head_camera/image_raw" />
     <param name="image_frame" value="/head_camera" />
     <param name="cam_info_topic" value="/io/internal_camera/head_camera/camera_info" />

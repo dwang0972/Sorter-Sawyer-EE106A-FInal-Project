@@ -7,6 +7,7 @@ import argparse
 import struct
 import sys
 import copy
+from copy import deepcopy
 
 from baxter_pnp.srv import *
 
@@ -81,13 +82,13 @@ class PnPService:
             return
         
         # servo above pose
-        status = self._approach(pose)
+        status = self._approach(deepcopy(pose))
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
             return
         
         # servo to pose
-        status = self._servo_to_pose(pose)
+        status = self._servo_to_pose(deepcopy(pose))
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
             return
@@ -106,13 +107,15 @@ class PnPService:
 
     def place(self, pose):
         # servo above pose
-        status = self._approach(pose)
+        status = self._approach(deepcopy(pose))
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
             return
         
         # servo to pose
-        status = self._servo_to_pose(pose)
+        place_pose = deepcopy(pose)
+        place_pose.position.z += 0.05
+        status = self._servo_to_pose(place_pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
             return
@@ -192,6 +195,7 @@ class PnPService:
     def _guarded_move_to_joint_position(self, joint_angles):
         if joint_angles:
             self._limb.move_to_joint_positions(joint_angles)
+            rospy.sleep(1.0)
             return True
         else:
             rospy.logerr("No Joint Angles provided for move_to_joint_positions. Staying put.")
@@ -239,7 +243,7 @@ class PnPService:
         # servo down to release
         rospy.logdebug("Move to pose: \n{0}".format(pose))
 
-        pose.position.z += 0.1
+        pose.position.z += 0.08
         
         joint_angles = self.ik_request(pose)
 
