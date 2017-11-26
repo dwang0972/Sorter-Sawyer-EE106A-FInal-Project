@@ -109,63 +109,73 @@ class CircleDetectionService:
 
     def detect_circles(self, img):
         #cv2.medianBlur(img, 5)
-<<<<<<< HEAD
         import copy
         # yellow mask
         yimg = copy.copy(img)
-        yimg, yellowMask = self.color_filter(yimg, [20, 80, 100], [80, 200, 255])
+
+        yimg, yellowMask = self.color_filter(yimg, [24, 80, 100], [30, 200, 255])
         yellowCircle = self.find_contours(yimg, yellowMask)
         rospy.logdebug("yellow circle " + str(yellowCircle))
-        yellowCircle = None
-        # #red mask
+        
+        #red mask
         rimg = copy.copy(img)
-        rimg, redMask = self.color_filter(rimg, [0, 0, 0], [255, 100, 100])
-        redCircle = self.find_contours(rimg, redMask)
+        rimg2 = copy.copy(img)
+        rimg, redMask = self.color_filter(rimg, [0, 70, 50], [10, 255, 255])
+        rimg2, redMask2 = self.color_filter(rimg2, [170, 70, 50], [180, 255, 255])
+        rimg3 = cv2.bitwise_or(rimg, rimg2)
+        redMask3 = cv2.bitwise_or(redMask, redMask2)
+
+        redCircle = self.find_contours(rimg3, redMask3)
         rospy.logdebug("red circle " + str(redCircle))
-        redCircle = None
+
+        # blue mask
+        bimg = copy.copy(img)
+        bimg, blueMask = self.color_filter(bimg, [103, 50, 50], [130, 255, 255])
+        blueCircle = self.find_contours(bimg, blueMask)
+        rospy.logdebug("blue circle " + str(blueCircle))
+
+        # green mask
+        gimg = copy.copy(img)
+        gimg, greenMask = self.color_filter(gimg, [60, 20, 20], [80, 255, 255])
+        greenCircle = self.find_contours(gimg, greenMask)
+        rospy.logdebug("green circle" + str(greenCircle))
+
         maxCircle = np.asarray([[[0, 0, 0]]])
 
         existCount = 0
-        drawimgs = [yimg, rimg]
+        drawimgs = [yimg, rimg, bimg, gimg]
         draw_img = drawimgs[0]
-        circles = [yellowCircle, redCircle]
+        circles = [yellowCircle, redCircle, blueCircle, greenCircle]
         for idx in range(circles.__len__()):
             circ = circles[idx]
             if circ is not None:
                 existCount += 1
                 maxCircle = circ
+                rospy.logdebug("SETTING CIRCLE / CIRC IS NOT NONE")
                 draw_img = drawimgs[idx]
-        if existCount > 1:
+        if existCount > 1: # If we have more than one circle that is not none, we need to find the max radius circle. 
             # maxCircle = max([yellowCircle, redCircle], key= lambda x: x[0][0][2])
             for idx in range(circles.__len__()):
                 circ = circles[idx]
-                if maxCircle[0][0][2] < circ[0][0][2]:
+                maxCircRadius = maxCircle[0][0][2]
+                print("circ" + str(circ))
+                if circ is None:
+                    circRadius = float("-inf")
+                else:
+                    circRadius = circ[0][0][2]
+                if maxCircRadius < circRadius:
                     maxCircle = circ
                     draw_img = drawimgs[idx]
         rospy.logdebug("Max circle: {0}".format(maxCircle))
 
         if maxCircle is not None:
             circles_to_draw = np.uint16(np.around(maxCircle))
-=======
-
-        img, mask = self.color_filter(img, [20, 80, 100], [80, 200, 255])
-        circles = self.find_contours(img, mask)
-
-        #circles = self.find_circles(img)
-        
-        '''
-        rospy.logdebug("Circles: {0}".format(circles))
-        if circles is not None:
-            circles_to_draw = np.uint16(np.around(circles))
->>>>>>> 95f75e11b1bab66a5b4cdc51cec2d53c2b381633
-
             for i in circles_to_draw[0, :]:
                 cv2.circle(draw_img, (i[0], i[1]), i[2], (0,255,0), 2)
                 cv2.circle(draw_img, (i[0], i[1]), 2, (0,0,255), 3)
 
         cv2.imshow('max circle', draw_img)
         key = cv2.waitKey(1) & 0xFF
-        '''
 
         return maxCircle
 
