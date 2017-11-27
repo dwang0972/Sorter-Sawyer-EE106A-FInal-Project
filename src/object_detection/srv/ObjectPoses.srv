@@ -3,3 +3,5 @@ string frame
 ---
 # Response
 geometry_msgs/PoseStamped[] poses
+float64 heights
+string[] colors

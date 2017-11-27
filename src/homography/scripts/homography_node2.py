@@ -45,6 +45,9 @@ class Homography:
         rospy.init_node("homography", log_level=rospy.DEBUG)
         self.rate = rospy.Rate(0.5)
 
+        self.markers = {}
+        self.load_markers()
+
         # AR Tag Service
         rospy.wait_for_service('marker_pose', 5)
         self.marker_pose_srv = rospy.ServiceProxy('marker_pose', ArMarkerPose)
@@ -72,6 +75,14 @@ class Homography:
         # Throw service
         rospy.wait_for_service('throw', 5)
         self.throw_srv = rospy.ServiceProxy('throw', Throw)
+
+
+    def load_markers(self):
+        for color in ["red", "yellow", "green", "blue"]
+            marker = rospy.get_param("~marker_" + color, None)
+            if marker is not None:
+                self.markers[color] = marker
+
 
     def move_to_start(self):
         starting_joint_angles = {'right_j0': 1.5087646484375,
@@ -155,32 +166,40 @@ class Homography:
             object_pose_request = ObjectPosesRequest(frame='/base')
             object_pose_response = self.object_pose_srv(object_pose_request)
             pick_poses = object_pose_response.poses
-
-            rospy.wait_for_service('marker_pose', 5.0)
-            marker_pose_request = ArMarkerPoseRequest(frame='/base', marker_type=10)
-            marker_pose_response = self.marker_pose_srv(marker_pose_request)
-            place_pose = marker_pose_response.pose
+            pick_colors = object_pose_response.colors
 
             rospy.logdebug("Circle detection response: {0}".format(object_pose_response))
-            if len(pick_poses) > 0 and pick_poses[0].pose.position.x != 0 and place_pose is not None and place_pose.pose.position.x != 0:
+            if len(pick_poses) > 0 and pick_poses[0].pose.position.x != 0:
+
                 pick_pose = pick_poses[0]
+                pick_color = pick_colors[0]
+
                 pick_pose.pose.orientation = orientation
                 rospy.logdebug("Pick detected: \n{0}".format(pick_pose))
+
+                rospy.wait_for_service('marker_pose', 5.0)
+                marker_pose_request = ArMarkerPoseRequest(frame='/base', marker_type=self.markers[pick_color])
+                marker_pose_response = self.marker_pose_srv(marker_pose_request)
+                place_pose = marker_pose_response.pose
+
+                if place_pose is not None and place_pose.pose.position.x != 0:
+                    place_pose.pose.orientation = orientation
+                    rospy.logdebug("Place detected: \n{0}".format(place_pose))
+
+
+                    pnp_request = PickAndPlaceRequest()
+                    pnp_request.pick = pick_pose
+                    pnp_request.place = place_pose
+                    rospy.wait_for_service('pick_and_place', 5.0)
+                    self.pnp_srv(pnp_request)
+                    rospy.sleep(1)
+                    break
                 
-                place_pose.pose.orientation = orientation
-                rospy.logdebug("Place detected: \n{0}".format(place_pose))
-
-
-                pnp_request = PickAndPlaceRequest()
-                pnp_request.pick = pick_pose
-                pnp_request.place = place_pose
-                rospy.wait_for_service('pick_and_place', 5.0)
-                self.pnp_srv(pnp_request)
-                rospy.sleep(1)
-                break
+                else:
+                    rospy.logdebug("No place detected")
 
             else:
-                rospy.logdebug("There was an error in the positions detection")
+                rospy.logdebug("No object detected")
                 
             self.rate.sleep()
 

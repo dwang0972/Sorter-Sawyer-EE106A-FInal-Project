@@ -30,6 +30,8 @@
     <param name="cam_info_topic" value="/io/internal_camera/head_camera/camera_info" />
   </node>
 
-  <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen" />
+  <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen">
+    <param name="marker_yellow" value="13"/>
+  </node>
 
 </launch>
