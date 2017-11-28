@@ -34,6 +34,7 @@ from sensor_msgs.msg import (
     CameraInfo
 )
 
+img_display = None
 
 class ColorDetectionService:
     def __init__(self):
@@ -43,7 +44,8 @@ class ColorDetectionService:
 
         rospy.init_node("color_detection", log_level=rospy.DEBUG)
 
-        self.marker_type = int( rospy.get_param("marker_type", "9") )
+        self.marker_type = int( rospy.get_param("marker_frame") )
+        print("Using marker frame id: {0}".format(self.marker_type))
         
         self.frame = rospy.get_param("~image_frame")
         self.image_topic = rospy.get_param("~image_topic")
@@ -80,13 +82,20 @@ class ColorDetectionService:
             cv2.CHAIN_APPROX_SIMPLE)[-2]
         center = None
         
+        contours = []
+
         # only proceed if at least one contour was found
-        if len(cnts) > 0:
+        if len(cnts) == 0:
+            return contours
             # find the largest contour in the mask, then use
             # it to compute the minimum enclosing circle and
             # centroid
-            c = max(cnts, key=cv2.contourArea)
+        for c in cnts:
             ((x, y), radius) = cv2.minEnclosingCircle(c)
+
+            # only proceed if the radius meets a minimum size
+            if radius < 4 or radius > 9:
+                continue
 
             #rospy.logdebug("Min enclosing circle: {0}, {1}, {2}".format(x, y, radius))
 
@@ -96,26 +105,15 @@ class ColorDetectionService:
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                 #rospy.logdebug("Moment: {0}, {1}".format(center[0], center[1]))
             
-                # only proceed if the radius meets a minimum size
-                if radius > 5:
-                    # draw the circle and centroid on the frame,
-                    # then update the list of tracked points
-                    return np.array([[[center[0], center[1], int(radius)]]])
+                # draw the circle and centroid on the frame,
+                # then update the list of tracked points
+                contours.append((center[0], center[1], int(radius)))
 
-    def detect_color(self, img, lowers, uppers):
-        imgs = []
-        masks = []
-        for l, u in zip(lowers, uppers):
-            copy_img = copy.copy(img)
-            new_img, new_mask = self.color_filter(copy_img, l, u)
-            imgs.append(new_img)
-            masks.append(new_mask)
+        return contours
 
-        new_img = imgs[0]
-        new_mask = masks[0]
-        for i, m in zip(imgs[1:], masks[1:]):
-            new_img = cv2.bitwise_or(new_img, i)
-            new_mask = cv2.bitwise_or(new_mask, m)
+    def detect_color(self, img, lower, upper):
+        copy_img = copy.copy(img)
+        new_img, new_mask = self.color_filter(copy_img, lower, upper)
         return self.find_contours(new_img, new_mask)
 
 
@@ -124,21 +122,38 @@ class ColorDetectionService:
 
         detected_objects = {}
 
-        yellowObject = self.detect_color(img, [[24, 80, 100]], [[30, 200, 255]])
-        if yellowObject is not None:
-            detected_objects["yellow"] = yellowObject
+        yellowObjects = self.detect_color(img, [20, 60, 120], [50, 100, 140])
+        detected_objects["yellow"] = yellowObjects
 
-        redObject = self.detect_color(img, [[0, 70, 50], [170, 70, 50]], [[10, 255, 255], [180, 255, 255]])
-        if redObject is not None:
-            detected_objects["red"] = redObject
+        redObjects = self.detect_color(img, [0, 100, 70], [10, 150, 150])
+        detected_objects["red"] = redObjects
 
-        blueObject = self.detect_color(img, [[103, 50, 50]], [[130, 255, 255]])
-        if blueObject is not None:
-            detected_objects["blue"] = blueObject
+        blueObjects = self.detect_color(img, [100, 140, 60], [120, 160, 80])
+        detected_objects["blue"] = blueObjects
 
-        greenObject = self.detect_color(img, [[60, 20, 20]], [[80, 255, 255]])
-        if greenObject is not None:
-            detected_objects["green"] = greenObject
+        greenObjects = self.detect_color(img, [80, 100, 40], [100, 110, 60])
+        detected_objects["green"] = greenObjects
+        
+        for color in detected_objects:
+            for obj in detected_objects[color]:
+                obj = np.uint16(np.around(obj))
+                if color == "yellow":
+                    bgr = (0, 255, 255)
+                elif color == "red":
+                    bgr = (0, 0, 255)
+                elif color == "blue":
+                    bgr = (255, 0, 0)
+                elif color == "green":
+                    bgr = (0, 255, 0)
+                cv2.circle(img, (obj[0], obj[1]), obj[2], bgr, 2)
+                cv2.circle(img, (obj[0], obj[1]), 2, bgr, 3)
+
+        global img_display
+        img_display = img
+        cv2.imshow('colors', img)
+        key = cv2.waitKey(1) & 0xFF
+
+        #rospy.logdebug("Detected objects: {0}".format(detected_objects))
 
         return detected_objects
 
@@ -158,6 +173,7 @@ class ColorDetectionService:
             return response
 
         if len(self.detected_objects) == 0:
+            rospy.logdebug("No object detected")
             return response
 
         rospy.wait_for_service('marker_pose', 5.0)
@@ -165,22 +181,24 @@ class ColorDetectionService:
         marker_pose_response = self.marker_pose_srv(marker_pose_request)
         marker_pose = marker_pose_response.pose
         if marker_pose is None or marker_pose.pose.position.x == 0:
+            rospy.logdebug("Couldn't find marker frame")
             return response
 
-        for c, o in sorted(zip(colors, objects), lambda x: x[1] [2], reverse=True):
+        colors = self.detected_objects.keys()
+        objects = self.detected_objects.values()
 
-            ray = self.pinhole_camera.projectPixelTo3dRay((o[0], o[1]-o[2]))
-            point = self.ray_to_3dpoint(ray, marker_pose, request.frame)
-            pose = PoseStamped(header=Header(frame_id=self.frame, stamp=rospy.Time(0)), pose=Pose(position=point))
+        for c, objs in zip(colors, objects):
+            for o in objs:
+                ray = self.pinhole_camera.projectPixelTo3dRay((o[0], o[1]))
+                point = self.ray_to_3dpoint(ray, marker_pose, request.frame)
+                pose = PoseStamped(header=Header(frame_id=self.frame, stamp=rospy.Time(0)), pose=Pose(position=point))
 
-            self.listener.waitForTransform(request.frame, self.frame, rospy.Time(0), rospy.Duration(3.0))
-            transformed_pose = self.listener.transformPose(request.frame, pose)
-            #transformed_pose.pose.position.x += 0.05
-            #transformed_pose.pose.position.y += 0.05
+                self.listener.waitForTransform(request.frame, self.frame, rospy.Time(0), rospy.Duration(3.0))
+                transformed_pose = self.listener.transformPose(request.frame, pose)
 
-            #rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
-            response.colors.append(c)
-            response.poses.append(transformed_pose)        
+                #rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
+                response.colors.append(c)
+                response.poses.append(transformed_pose)        
 
         response
 
@@ -224,7 +242,6 @@ class ColorDetectionService:
 
     def run(self):
         rospy.spin()
-
 
 def main():
     color_srv = ColorDetectionService()

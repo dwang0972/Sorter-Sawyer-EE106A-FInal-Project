@@ -45,6 +45,7 @@ class Homography:
         rospy.init_node("homography", log_level=rospy.DEBUG)
         self.rate = rospy.Rate(0.5)
 
+        self.marker_frame = int(rospy.get_param("marker_frame"))
         self.markers = {}
         self.load_markers()
 
@@ -53,12 +54,16 @@ class Homography:
         self.marker_pose_srv = rospy.ServiceProxy('marker_pose', ArMarkerPose)
 
         # Circle Service
-        rospy.wait_for_service('circle_detection', 5)
-        self.object_pose_srv = rospy.ServiceProxy('circle_detection', ObjectPoses)
+        rospy.wait_for_service('color_detection', 5)
+        self.object_pose_srv = rospy.ServiceProxy('color_detection', ObjectPoses)
 
         # Pick and place Service
         rospy.wait_for_service('pick_and_place', 5)
         self.pnp_srv = rospy.ServiceProxy('pick_and_place', PickAndPlace)
+
+        # Pick and throw Service
+        rospy.wait_for_service('pick_and_throw', 5)
+        self.pnt_srv = rospy.ServiceProxy('pick_and_throw', PickAndPlace)
 
         # Movement Service
         rospy.wait_for_service('move_to_position', 5)
@@ -73,12 +78,12 @@ class Homography:
         self.head_srv = rospy.ServiceProxy("move_head", HeadMovement)
 
         # Throw service
-        rospy.wait_for_service('throw', 5)
-        self.throw_srv = rospy.ServiceProxy('throw', Throw)
+        #rospy.wait_for_service('throw', 5)
+        #self.throw_srv = rospy.ServiceProxy('throw', Throw)
 
 
     def load_markers(self):
-        for color in ["red", "yellow", "green", "blue"]
+        for color in ["red", "yellow", "green", "blue"]:
             marker = rospy.get_param("~marker_" + color, None)
             if marker is not None:
                 self.markers[color] = marker
@@ -161,18 +166,22 @@ class Homography:
             self.rate.sleep()
 
     def execute_pick_and_place(self):
+        done = False
         while not rospy.is_shutdown():
-            rospy.wait_for_service('circle_detection', 5.0)
+            self.rate.sleep()
+
+            rospy.wait_for_service('color_detection', 5.0)
             object_pose_request = ObjectPosesRequest(frame='/base')
             object_pose_response = self.object_pose_srv(object_pose_request)
             pick_poses = object_pose_response.poses
             pick_colors = object_pose_response.colors
 
             rospy.logdebug("Circle detection response: {0}".format(object_pose_response))
-            if len(pick_poses) > 0 and pick_poses[0].pose.position.x != 0:
+            if len(pick_poses) == 0:
+                rospy.logdebug("No object detected")
+                continue
 
-                pick_pose = pick_poses[0]
-                pick_color = pick_colors[0]
+            for pick_pose, pick_color in zip(pick_poses, pick_colors):
 
                 pick_pose.pose.orientation = orientation
                 rospy.logdebug("Pick detected: \n{0}".format(pick_pose))
@@ -182,26 +191,39 @@ class Homography:
                 marker_pose_response = self.marker_pose_srv(marker_pose_request)
                 place_pose = marker_pose_response.pose
 
-                if place_pose is not None and place_pose.pose.position.x != 0:
+                if place_pose is None or place_pose.pose.position.x == 0:
+                    rospy.logdebug("No place detected")
+                    place_pose = copy.deepcopy(pick_pose)
+                    place_pose.pose.position.x = 0
+                    place_pose.pose.position.y = 0
+                    place_pose.pose.position.z = 0.8
                     place_pose.pose.orientation = orientation
-                    rospy.logdebug("Place detected: \n{0}".format(place_pose))
-
-
                     pnp_request = PickAndPlaceRequest()
                     pnp_request.pick = pick_pose
                     pnp_request.place = place_pose
                     rospy.wait_for_service('pick_and_place', 5.0)
-                    self.pnp_srv(pnp_request)
-                    rospy.sleep(1)
+                    #self.pnt_srv(pnp_request)
+                    done = True
                     break
-                
-                else:
-                    rospy.logdebug("No place detected")
+                    
 
-            else:
-                rospy.logdebug("No object detected")
+                place_pose.pose.position.y -= 0.1
+                place_pose.pose.position.z -= 0.1
+                place_pose.pose.orientation = orientation
+                rospy.logdebug("Place detected: \n{0}".format(place_pose))
+
+
+                pnp_request = PickAndPlaceRequest()
+                pnp_request.pick = pick_pose
+                pnp_request.place = place_pose
+                rospy.wait_for_service('pick_and_place', 5.0)
+                #self.pnp_srv(pnp_request)
+                done = True
+                break
+
+            if done:
+                break
                 
-            self.rate.sleep()
 
 
     def run(self):

@@ -62,22 +62,35 @@ class PnPService:
         _rs.enable()
 
 
-        rospy.Service("pick_and_place", PickAndPlace, self.execute)
+        rospy.Service("pick_and_place", PickAndPlace, self.pnp)
+        rospy.Service("pick_and_throw", PickAndPlace, self.pnt)
         rospy.Service("move_to_position", PositionMovement, self.move_to_position)
         rospy.Service("move_to_joint", JointMovement, self.move_to_joint)
         rospy.Service("move_head", HeadMovement, self.move_head)
-        rospy.Service("throw", Throw, self.throw)
+        #rospy.Service("throw", Throw, self.throw)
         rospy.logdebug("PNP Ready")
 
-    def execute(self, request):
+    def pnp(self, request):
         response = PickAndPlaceResponse()
 
         rospy.logdebug("\nPicking...")
         self.pick(request.pick.pose)
 
         rospy.logdebug("\nPlacing...")
-        #self.place(request.place.pose)
-        self.throw(None)
+        self.place(request.place.pose)
+        #self.throw(None)
+
+        return response
+
+    def pnt(self, request):
+        response = PickAndPlaceResponse()
+
+        rospy.logdebug("\nPicking...")
+        self.pick(request.pick.pose)
+
+        rospy.logdebug("\nThrowing...")
+        self.throw(request.place.pose)
+        #self.throw(None)
 
         return response
 
@@ -287,13 +300,16 @@ class PnPService:
         while (not rospy.is_shutdown() and
            not (abs(self._head.pan() - angle) <= intera_interface.HEAD_PAN_ANGLE_TOLERANCE)):
             self._head.set_pan(angle, speed=0.3, timeout=0)
-            print(self._head.pan())
             rate.sleep()
 
         return response
 
-    def throw(self, request):
+    def throw(self, pose):
         self._limb.set_joint_position_speed(1.0)
+
+        joint_angles = self.ik_request(pose)
+
+        self._guarded_move_to_joint_position(joint_angles)
 
         joint = 'right_j5'
         while not rospy.is_shutdown() and self._limb.joint_angle(joint) >= -2.9:
