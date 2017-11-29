@@ -4,9 +4,11 @@ import rospy
 import sys
 
 import argparse
+import math
 import struct
 import sys
-import copy
+import tf
+
 from copy import deepcopy
 
 from baxter_pnp.srv import *
@@ -28,6 +30,8 @@ from intera_core_msgs.srv import (
     SolvePositionIK,
     SolvePositionIKRequest,
 )
+
+from ik_throw_solver import IkThrowSolver
 
 from sensor_msgs.msg import JointState
 
@@ -54,6 +58,8 @@ class PnPService:
         self._iksvc_name = "ExternalTools/" + self._limb_name + "/PositionKinematicsNode/IKService"
         rospy.wait_for_service(self._iksvc_name, 5.0)
         self._iksvc = rospy.ServiceProxy(self._iksvc_name, SolvePositionIK)
+
+        self.listener = tf.TransformListener()
 
         # Enable the robot
         _rs = intera_interface.RobotEnable(intera_interface.CHECK_VERSION)
@@ -133,11 +139,10 @@ class PnPService:
             return
         
         # servo to pose
-        place_pose = deepcopy(pose)
-        place_pose.position.z += 0.05
-        status = self._servo_to_pose(place_pose)
+        status = self._servo_to_pose(deepcopy(pose))
         if not status:
-            rospy.logerr("Servo to pose error, moving back to starting point")
+            rospy.logwarn("Servo to pose error, trying to throw")
+            self.throw(pose)
             return
 
         # open the gripper
@@ -305,32 +310,73 @@ class PnPService:
         return response
 
     def throw(self, pose):
-        self._limb.set_joint_position_speed(1.0)
+        self.prepare_throw(pose)
+        self.execute_throw(pose)
 
-        joint_angles = self.ik_request(pose)
+    def prepare_throw(self, pose):
+        point = pose.position
+        alpha = math.pi - math.atan2(point.y, point.x) - math.acos(d/(math.pow(point.x, 2) + math.pow(point.y, 2)))
+        beta = math.atan2(point.z, math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2) + math.pow(point.z, 2)))
 
-        self._guarded_move_to_joint_position(joint_angles)
+        joints = {
+            'right_j0': alpha,
+            'right_j1': beta,
+            'right_j2': 0,
+            'right_j3': 0,
+            'right_j4': 0,
+            'right_j5': 0,
+            'right_j6': 0
+        }
 
-        joint = 'right_j5'
-        while not rospy.is_shutdown() and self._limb.joint_angle(joint) >= -2.9:
-            self._limb.set_joint_velocities({joint: -1})
+        return self._guarded_move_to_joint_position(joints)
+
+    def execute_throw(self, pose):
+        self.listener.waitForTransform("/base", "/right_j3", rospy.Time(0), rospy.Duration(3.0))
+        p, q = self.listener.lookupTransform("/base", "/right_j3", rospy.Time(0))
+
+        solver = IkThrowSolver(
+            math.sqrt(math.pow(p[0],2) + math.pow(p[1], 2)),
+            p[2],
+            math.sqrt(math.pow(pose.position.x,2) + math.pow(pose.position.y, 2)), 
+            pose.position.z
+        )
+
+        theta3, theta5, t = solver.solve()
+
+        joint3 = 'right_j3'
+        joint5 = 'right_j5'
+
+        w3 = 1.957
+        w5 = 3.485
+
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint3) >= -2.9:
+            self._limb.set_joint_velocities({joint3: 1})
+
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.9:
+            self._limb.set_joint_velocities({joint5: 1})
+
+        dt = abs(self._limb.joint_angle(joint3) - theta3) / w3
+
+        dt_start5 = dt - abs(self._limb.joint_angle(joint5) - theta5) / w5
+
+        dt_gripper = dt - 0.01
+
+        gripper_thread = Thread(target = self._gripper.open)
 
         timer = time.time()
-        done = False
         while not rospy.is_shutdown():
-            #self._limb.set_joint_velocities({'right_j3': +20})
-            self._limb.set_joint_velocities({joint: +20})
-            if time.time() - timer >= 0.5 and not done:
-                Thread(target = self._gripper.open).start()
-                done = True
-                timer = time.time()
-            if time.time() - timer >= 0.5 and done:
-                self._limb.set_joint_velocities({joint: +3})
+            self._limb.set_joint_velocities({joint3: w3})
+            
+            if time.time() - timer >= dt_start5:
+                self._limb.set_joint_velocities({joint5: w5})
+
+            if time.time() - timer >= dt_gripper:
+                gripper_thread.start()
+
+            if time.time() - timer >= dt:
                 break
 
-        self._limb.set_joint_position_speed(0.3)
-
-        return ThrowResponse()
+        gripper_thread.join()
 
 
 
