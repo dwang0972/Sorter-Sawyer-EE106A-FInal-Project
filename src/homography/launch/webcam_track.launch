@@ -11,7 +11,7 @@
   <arg name="marker_margin" default="2" />
   <arg name="frame_id" default="/head_camera" />
 
-  <arg name="marker_frame" default="10" />
+  <arg name="marker_frame" default="15" />
 
 
   <param name="marker_frame" value="$(arg marker_frame)" />
@@ -31,8 +31,8 @@
   </node>
 
   <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen">
-    <param name="marker_yellow" value="15"/>
-    <param name="marker_red" value="13"/>
+    <param name="marker_yellow" value="10"/>
+    <param name="marker_red" value="10"/>
     <param name="marker_blue" value="12"/>
     <param name="marker_green" value="13"/>
   </node>

@@ -2,6 +2,7 @@
 
 import copy
 import cv2
+import math
 import numpy as np
 import sys
 
@@ -104,10 +105,16 @@ class ColorDetectionService:
             if M["m00"] != 0:
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                 #rospy.logdebug("Moment: {0}, {1}".format(center[0], center[1]))
-            
-                # draw the circle and centroid on the frame,
-                # then update the list of tracked points
-                contours.append((center[0], center[1], int(radius)))
+
+                too_close = False
+                for cnt in contours:
+                    if math.sqrt(math.pow(cnt[0]-center[0], 2) + math.pow(cnt[1]-center[1], 2)) < 20:
+                        too_close = True
+                        # draw the circle and centroid on the frame,
+                        # then update the list of tracked points
+                        
+                if not too_close:
+                    contours.append((center[0], center[1], int(radius)))
 
         return contours
 
@@ -122,16 +129,16 @@ class ColorDetectionService:
 
         detected_objects = {}
 
-        yellowObjects = self.detect_color(img, [20, 60, 120], [50, 100, 140])
+        yellowObjects = self.detect_color(img, [20, 80, 70], [40, 110, 130])
         detected_objects["yellow"] = yellowObjects
 
-        redObjects = self.detect_color(img, [0, 100, 70], [10, 150, 150])
+        redObjects = self.detect_color(img, [0, 100, 70], [20, 150, 150])
         detected_objects["red"] = redObjects
 
-        blueObjects = self.detect_color(img, [100, 140, 60], [120, 160, 80])
+        blueObjects = self.detect_color(img, [90, 140, 50], [120, 160, 80])
         detected_objects["blue"] = blueObjects
 
-        greenObjects = self.detect_color(img, [80, 100, 40], [100, 110, 60])
+        greenObjects = self.detect_color(img, [70, 100, 40], [100, 120, 60])
         detected_objects["green"] = greenObjects
         
         for color in detected_objects:
