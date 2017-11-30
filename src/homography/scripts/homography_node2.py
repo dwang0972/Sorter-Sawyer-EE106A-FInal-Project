@@ -90,6 +90,7 @@ class Homography:
 
 
     def move_to_start(self):
+        '''
         starting_joint_angles = {'right_j0': 1.5087646484375,
                              'right_j1': -0.11942578125,
                              'right_j2': -3.0390751953125,
@@ -97,6 +98,14 @@ class Homography:
                              'right_j4': -2.9739267578125,
                              'right_j5': 0.0444990234375,
                             'right_j6': -0.005763671875}
+        '''
+        starting_joint_angles = {'right_j0': 0.1,
+                             'right_j1': 0.1,
+                             'right_j2': -3,
+                             'right_j3': 0.1,
+                             'right_j4': -2.97,
+                             'right_j5': 0.1,
+                            'right_j6': 0.1}
 
         starting_pose = Pose(
             position=Point(
@@ -183,6 +192,7 @@ class Homography:
 
             for pick_pose, pick_color in zip(pick_poses, pick_colors):
 
+                pick_pose.pose.position.z -= 0.01
                 pick_pose.pose.orientation = orientation
                 rospy.logdebug("Pick detected: \n{0}".format(pick_pose))
 
@@ -201,25 +211,22 @@ class Homography:
                     pnp_request = PickAndPlaceRequest()
                     pnp_request.pick = pick_pose
                     pnp_request.place = place_pose
-                    rospy.wait_for_service('pick_and_place', 5.0)
+                    #rospy.wait_for_service('pick_and_place', 5.0)
                     #self.pnt_srv(pnp_request)
+                    #done = True
+                    #break
+                else:
+                    place_pose.pose.orientation = orientation
+                    rospy.logdebug("Place detected: \n{0}".format(place_pose))
+
+
+                    pnp_request = PickAndPlaceRequest()
+                    pnp_request.pick = pick_pose
+                    pnp_request.place = place_pose
+                    rospy.wait_for_service('pick_and_place', 5.0)
+                    self.pnp_srv(pnp_request)
                     done = True
                     break
-                    
-
-                place_pose.pose.position.y -= 0.1
-                place_pose.pose.position.z -= 0.1
-                place_pose.pose.orientation = orientation
-                rospy.logdebug("Place detected: \n{0}".format(place_pose))
-
-
-                pnp_request = PickAndPlaceRequest()
-                pnp_request.pick = pick_pose
-                pnp_request.place = place_pose
-                rospy.wait_for_service('pick_and_place', 5.0)
-                #self.pnp_srv(pnp_request)
-                done = True
-                break
 
             if done:
                 break

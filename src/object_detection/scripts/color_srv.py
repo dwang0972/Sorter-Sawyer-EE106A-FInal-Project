@@ -95,7 +95,7 @@ class ColorDetectionService:
             ((x, y), radius) = cv2.minEnclosingCircle(c)
 
             # only proceed if the radius meets a minimum size
-            if radius < 4 or radius > 9:
+            if radius < 4 or radius > 15:
                 continue
 
             #rospy.logdebug("Min enclosing circle: {0}, {1}, {2}".format(x, y, radius))
@@ -129,17 +129,17 @@ class ColorDetectionService:
 
         detected_objects = {}
 
-        yellowObjects = self.detect_color(img, [20, 80, 70], [40, 110, 130])
-        detected_objects["yellow"] = yellowObjects
+        #yellowObjects = self.detect_color(img, [20, 70, 90], [60, 110, 140])
+        #detected_objects["yellow"] = yellowObjects
 
-        redObjects = self.detect_color(img, [0, 100, 70], [20, 150, 150])
-        detected_objects["red"] = redObjects
+        #redObjects = self.detect_color(img, [0, 100, 80], [30, 150, 120])
+        #detected_objects["red"] = redObjects
 
-        blueObjects = self.detect_color(img, [90, 140, 50], [120, 160, 80])
+        blueObjects = self.detect_color(img, [100, 120, 65], [120, 160, 80])
         detected_objects["blue"] = blueObjects
 
-        greenObjects = self.detect_color(img, [70, 100, 40], [100, 120, 60])
-        detected_objects["green"] = greenObjects
+        #greenObjects = self.detect_color(img, [70, 100, 45], [90, 115, 60])
+        #detected_objects["green"] = greenObjects
         
         for color in detected_objects:
             for obj in detected_objects[color]:
@@ -234,7 +234,7 @@ class ColorDetectionService:
 
         #rospy.logdebug("Transformed ray: {0}".format(np.dot(R[:3, :3], np.array(ray))))
 
-        t = (marker_pose.pose.position.z - p[2]) / np.dot(R[:3, :3], np.array(ray))[2]
+        t = (marker_pose.pose.position.z + 0.07 - p[2]) / np.dot(R[:3, :3], np.array(ray))[2]
 
         #rospy.logdebug("Parameter t: {0}".format(t))
 

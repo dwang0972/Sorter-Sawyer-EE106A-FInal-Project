@@ -5,7 +5,7 @@ import sys
 import math
 import scipy.optimize as opt
 import numpy as np
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 
 
 g = 9.81
@@ -34,23 +34,23 @@ class IkThrowSolver:
 
 
 	def y5(self, theta3):
-		return self.y3 - L4*math.cos(theta3 + alpha)
+		return self.y3 + L4*math.cos(theta3 + alpha)
 
 	def z5(self, theta3):
 		return self.z3 + L4*math.sin(theta3 + alpha)
 
 
 	def y_start(self, theta3, theta5):
-		return self.y5(theta3) - (L6+Lg)*math.cos(theta5+theta3+alpha)
+		return self.y5(theta3) + (L6+Lg)*math.cos(theta5+theta3+alpha)
 
 	def z_start(self, theta3, theta5):
 		return self.z5(theta3) + (L6+Lg)*math.sin(theta5+theta3+alpha)
 
 	def ydot_start(self, theta3, theta5):
-		return L4*w3*math.sin(theta3+alpha) + (L6+Lg)*(w3+w5)*math.sin(theta5+theta3+alpha)
+		return -L4*w3*math.sin(theta3+alpha) - (L6+Lg)*(w3+w5)*math.sin(theta5+theta3+alpha)
 
 	def zdot_start(self, theta3, theta5):
-		return L4*w3*math.cos(theta3+alpha) + (L6+Lg)*(w3+w5)*math.cos(theta5+theta3+alpha)
+		return +L4*w3*math.cos(theta3+alpha) + (L6+Lg)*(w3+w5)*math.cos(theta5+theta3+alpha)
 
 	def y_eq(self, var):
 		theta3, theta5, t = var
@@ -67,7 +67,7 @@ class IkThrowSolver:
 
 
 	def solve(self):
-		return opt.minimize(self.distance, (1,1,1))
+		return opt.minimize(self.distance, (1,1,1), constraints=({'type': 'ineq', 'fun': lambda x:  x[2]}))
 
 
 	def plot(self, solutions):
@@ -106,9 +106,13 @@ class IkThrowSolver:
 
 
 def main():
-	solver = IkThrowSolver(1, 0.1, 3, -0.2)
+	solver = IkThrowSolver(1, 0.1, 4, -0.2)
 	solutions = solver.solve()
-	solver.plot(solutions.x)
+	print(solutions.x)
+	theta3, theta5, t = solutions.x
+	print(theta3 - math.pi)
+
+	#solver.plot(solutions.x)
 
 
 if __name__ == "__main__":

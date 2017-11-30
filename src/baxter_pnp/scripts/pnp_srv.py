@@ -133,13 +133,18 @@ class PnPService:
 
     def place(self, pose):
         # servo above pose
-        status = self._approach(deepcopy(pose))
+        place_pose = deepcopy(pose)
+        place_pose.position.y -= 0.1
+        place_pose.position.z -= 0.1
+
+        status = self._approach(place_pose)
         if not status:
-            rospy.logerr("Approach error, moving back to starting point")
+            rospy.logwarn("Approach error, trying to throw")
+            self.throw(pose)
             return
         
         # servo to pose
-        status = self._servo_to_pose(deepcopy(pose))
+        status = self._servo_to_pose(place_pose)
         if not status:
             rospy.logwarn("Servo to pose error, trying to throw")
             self.throw(pose)
@@ -237,7 +242,7 @@ class PnPService:
         return True
 
     def _approach(self, pose):
-        approach = copy.deepcopy(pose)
+        approach = deepcopy(pose)
         # approach with a pose the hover-distance above the requested pose
         approach.position.z = approach.position.z + self._hover_distance
         rospy.logdebug("Approach: \n{0}".format(approach))
@@ -311,28 +316,40 @@ class PnPService:
 
     def throw(self, pose):
         self.prepare_throw(pose)
+        rospy.loginfo("Prepared to throw")
         self.execute_throw(pose)
 
     def prepare_throw(self, pose):
         point = pose.position
-        alpha = math.pi - math.atan2(point.y, point.x) - math.acos(d/(math.pow(point.x, 2) + math.pow(point.y, 2)))
-        beta = math.atan2(point.z, math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2) + math.pow(point.z, 2)))
+
+        rospy.logdebug("Target: {0}".format(point))
+
+        d = (192.5-168.5+136.3)/1000.0
+
+        alpha = math.atan2(point.x, -point.y)
+        beta = math.acos(d/math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2)))
+
+        theta0 = math.pi - alpha - beta
+        theta1 = math.atan2(-point.z, math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2) + math.pow(point.z, 2)))
+
+        rospy.logdebug("Alpha: {0}, Beta: {1}".format(alpha, beta))
+        rospy.logdebug("Theta0: {0}, Theta1: {1}".format(theta0, theta1))
 
         joints = {
-            'right_j0': alpha,
-            'right_j1': beta,
+            'right_j0': -theta0,
+            'right_j1': theta1,
             'right_j2': 0,
             'right_j3': 0,
             'right_j4': 0,
             'right_j5': 0,
-            'right_j6': 0
+            'right_j6': 1.57
         }
 
         return self._guarded_move_to_joint_position(joints)
 
     def execute_throw(self, pose):
-        self.listener.waitForTransform("/base", "/right_j3", rospy.Time(0), rospy.Duration(3.0))
-        p, q = self.listener.lookupTransform("/base", "/right_j3", rospy.Time(0))
+        self.listener.waitForTransform("/base", "/right_l3", rospy.Time(0), rospy.Duration(3.0))
+        p, q = self.listener.lookupTransform("/base", "/right_l3", rospy.Time(0))
 
         solver = IkThrowSolver(
             math.sqrt(math.pow(p[0],2) + math.pow(p[1], 2)),
@@ -341,7 +358,12 @@ class PnPService:
             pose.position.z
         )
 
-        theta3, theta5, t = solver.solve()
+        theta3, theta5, t = solver.solve().x
+        #theta3 = -theta3
+        #theta5 = -theta5
+
+        rospy.logdebug("Theta3: {0} Theta5: {1}".format(theta3, theta5))
+
 
         joint3 = 'right_j3'
         joint5 = 'right_j5'
@@ -349,11 +371,11 @@ class PnPService:
         w3 = 1.957
         w5 = 3.485
 
-        while not rospy.is_shutdown() and self._limb.joint_angle(joint3) >= -2.9:
-            self._limb.set_joint_velocities({joint3: 1})
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint3) >= -2.4:
+            self._limb.set_joint_velocities({joint3: -1})
 
-        while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.9:
-            self._limb.set_joint_velocities({joint5: 1})
+        #while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.9:
+        #    self._limb.set_joint_velocities({joint5: -1})
 
         dt = abs(self._limb.joint_angle(joint3) - theta3) / w3
 
@@ -363,15 +385,22 @@ class PnPService:
 
         gripper_thread = Thread(target = self._gripper.open)
 
+        print(dt)
+        print(dt_start5)
+        print(dt_gripper)
+
+        started = False
+
         timer = time.time()
         while not rospy.is_shutdown():
-            self._limb.set_joint_velocities({joint3: w3})
+            self._limb.set_joint_velocities({joint3: 10})
             
             if time.time() - timer >= dt_start5:
-                self._limb.set_joint_velocities({joint5: w5})
+                self._limb.set_joint_velocities({joint5: 10})
 
-            if time.time() - timer >= dt_gripper:
+            if time.time() - timer >= dt_gripper and not started:
                 gripper_thread.start()
+                started = True
 
             if time.time() - timer >= dt:
                 break
