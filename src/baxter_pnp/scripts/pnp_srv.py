@@ -359,8 +359,6 @@ class PnPService:
         )
 
         theta3, theta5, t = solver.solve().x
-        #theta3 = -theta3
-        #theta5 = -theta5
 
         rospy.logdebug("Theta3: {0} Theta5: {1}".format(theta3, theta5))
 
