@@ -324,21 +324,21 @@ class PnPService:
 
         rospy.logdebug("Target: {0}".format(point))
 
-        d = (192.5-168.5+136.3)/1000.0
+        d = (192.5+168.5+136.3)/1000.0
 
         alpha = math.atan2(point.x, -point.y)
         beta = math.acos(d/math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2)))
 
         theta0 = math.pi - alpha - beta
-        theta1 = math.atan2(-point.z, math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2) + math.pow(point.z, 2)))
+        theta1 = math.atan2(point.z, math.sqrt(math.pow(point.x, 2) + math.pow(point.y, 2) + math.pow(point.z, 2)))
 
         rospy.logdebug("Alpha: {0}, Beta: {1}".format(alpha, beta))
         rospy.logdebug("Theta0: {0}, Theta1: {1}".format(theta0, theta1))
 
         joints = {
             'right_j0': -theta0,
-            'right_j1': theta1,
-            'right_j2': 3.14,
+            'right_j1': -theta1,
+            'right_j2': -3.14,
             'right_j3': 0,
             'right_j4': 0,
             'right_j5': 0,
@@ -358,7 +358,7 @@ class PnPService:
             pose.position.z
         )
 
-        theta3, theta5, t = solver.solve().x
+        theta3_f, theta5_f, = solver.solve().x
 
         rospy.logdebug("Theta3: {0} Theta5: {1}".format(theta3, theta5))
 
@@ -375,32 +375,42 @@ class PnPService:
         while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.4:
             self._limb.set_joint_velocities({joint5: -1})
 
-        dt = abs(self._limb.joint_angle(joint3) - theta3) / w3
 
-        dt_start5 = dt - abs(self._limb.joint_angle(joint5) - theta5) / w5
+        theta3_0 = self._limb.joint_angle(joint3)
+        theta5_0 = self._limb.joint_angle(joint5)
 
-        dt_gripper = dt - 0.01
+        t_exec3, t_exec5 = solver.get_execution_times(theta3_0, theta5_0, theta3_f, theta5_f)
+        t_start3, t_start5 = solver.get_execution_times(theta3_0, theta5_0, theta3_f, theta5_f)
+
+        t_total = solver.get_total_execution_time(theta3_0, theta5_0, theta3_f, theta5_f)
+
+        t_gripper = t_total - 0.01
+
+        
+        rospy.logdebug("Start joint 3: {0}".format(t_start3))
+        rospy.logdebug("Start joint 5: {0}".format(t_start5))
+        rospy.logdebug("Total time: {0}".format(t_total))
+
 
         gripper_thread = Thread(target = self._gripper.open)
 
-        print(dt)
-        print(dt_start5)
-        print(dt_gripper)
-
         started = False
 
-        timer = time.time()
+        start_timer = time.time()
         while not rospy.is_shutdown():
-            self._limb.set_joint_velocities({joint3: 10})
-            
-            if time.time() - timer >= dt_start5:
-                self._limb.set_joint_velocities({joint5: 10})
+            new_timer = time.time()
 
-            if time.time() - timer >= dt_gripper and not started:
+            if new_timer - start_timer >= t_start3
+                self._limb.set_joint_velocities({joint3: w3})
+            
+            if new_timer - start_timer >= t_start5:
+                self._limb.set_joint_velocities({joint5: w5})
+
+            if new_timer - start_timer >= t_gripper and not started:
                 gripper_thread.start()
                 started = True
 
-            if time.time() - timer >= dt:
+            if new_timer - start_timer >= t_total:
                 break
 
         gripper_thread.join()
