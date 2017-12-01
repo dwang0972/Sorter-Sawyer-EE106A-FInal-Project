@@ -338,7 +338,7 @@ class PnPService:
         joints = {
             'right_j0': -theta0,
             'right_j1': theta1,
-            'right_j2': 0,
+            'right_j2': 3.14,
             'right_j3': 0,
             'right_j4': 0,
             'right_j5': 0,
@@ -372,8 +372,8 @@ class PnPService:
         while not rospy.is_shutdown() and self._limb.joint_angle(joint3) >= -2.4:
             self._limb.set_joint_velocities({joint3: -1})
 
-        #while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.9:
-        #    self._limb.set_joint_velocities({joint5: -1})
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.4:
+            self._limb.set_joint_velocities({joint5: -1})
 
         dt = abs(self._limb.joint_angle(joint3) - theta3) / w3
 
