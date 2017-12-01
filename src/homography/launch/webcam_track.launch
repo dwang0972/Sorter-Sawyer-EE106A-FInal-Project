@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="marker_size" default="16.5" />
+  <arg name="marker_size" default="16.7" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/io/internal_camera/head_camera/image_raw" />
@@ -11,7 +11,7 @@
   <arg name="marker_margin" default="2" />
   <arg name="frame_id" default="/head_camera" />
 
-  <arg name="marker_frame" default="15" />
+  <arg name="marker_frame" default="13" />
 
 
   <param name="marker_frame" value="$(arg marker_frame)" />
@@ -21,7 +21,7 @@
   <node name="ar_srv" pkg="ar_marker" type="ar_srv.py"  respawn="false" output="screen" />
 
   <node name="pnp_srv" pkg="baxter_pnp" type="pnp_srv.py" respawn="false" output="screen" args="joint_states:=/robot/joint_states">
-    <param name="hover_distance" value="0.4" />
+    <param name="hover_distance" value="0.3" />
   </node>
 
   <node name="color_detection" pkg="object_detection" type="color_srv.py" respawn="false" output="screen">
@@ -34,7 +34,7 @@
     <param name="marker_yellow" value="10"/>
     <param name="marker_red" value="12"/>
     <param name="marker_blue" value="12"/>
-    <param name="marker_green" value="13"/>
+    <param name="marker_green" value="15"/>
   </node>
 
 </launch>

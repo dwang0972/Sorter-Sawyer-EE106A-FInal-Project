@@ -106,15 +106,18 @@ class PnPService:
         if not status:
             rospy.logerr("Gripper open error, moving back to starting point")
             return
+
+        pick_pose = deepcopy(pose)
+        pick_pose.position.z += 0.04
         
         # servo above pose
-        status = self._approach(deepcopy(pose))
+        status = self._approach(pick_pose)
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
             return
         
         # servo to pose
-        status = self._servo_to_pose(deepcopy(pose))
+        status = self._servo_to_pose(pick_pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
             return
@@ -317,6 +320,7 @@ class PnPService:
     def throw(self, pose):
         self.prepare_throw(pose)
         rospy.loginfo("Prepared to throw")
+        time.sleep(1)
         self.execute_throw(pose)
 
     def prepare_throw(self, pose):
@@ -338,9 +342,9 @@ class PnPService:
         joints = {
             'right_j0': -theta0,
             'right_j1': -theta1,
-            'right_j2': -3.14,
+            'right_j2': -2.9,
             'right_j3': 0,
-            'right_j4': 0,
+            'right_j4': -2.9,
             'right_j5': 0,
             'right_j6': 1.57
         }
@@ -351,16 +355,15 @@ class PnPService:
         self.listener.waitForTransform("/base", "/right_l3", rospy.Time(0), rospy.Duration(3.0))
         p, q = self.listener.lookupTransform("/base", "/right_l3", rospy.Time(0))
 
+        rospy.logdebug("Solving...")
         solver = IkThrowSolver(
             math.sqrt(math.pow(p[0],2) + math.pow(p[1], 2)),
             p[2],
             math.sqrt(math.pow(pose.position.x,2) + math.pow(pose.position.y, 2)), 
-            pose.position.z
+            pose.position.z + 0.1
         )
 
-        theta3_f, theta5_f, = solver.solve().x
-
-        rospy.logdebug("Theta3: {0} Theta5: {1}".format(theta3, theta5))
+        theta3_f, theta5_f, t = solver.solve().x
 
 
         joint3 = 'right_j3'
@@ -369,22 +372,26 @@ class PnPService:
         w3 = 1.957
         w5 = 3.485
 
-        while not rospy.is_shutdown() and self._limb.joint_angle(joint3) >= -2.4:
-            self._limb.set_joint_velocities({joint3: -1})
+        while not rospy.is_shutdown() and self._limb.joint_angle(joint3) <= 2.4:
+            self._limb.set_joint_velocities({joint3: 1})
 
         while not rospy.is_shutdown() and self._limb.joint_angle(joint5) >= -2.4:
             self._limb.set_joint_velocities({joint5: -1})
 
+        time.sleep(1)
 
         theta3_0 = self._limb.joint_angle(joint3)
         theta5_0 = self._limb.joint_angle(joint5)
 
+        rospy.logdebug("Theta3 0: {0} Theta5 0: {1}".format(theta3_0, theta5_0))
+        rospy.logdebug("Theta3 F: {0} Theta5 F: {1}".format(theta3_f, theta5_f))
+
         t_exec3, t_exec5 = solver.get_execution_times(theta3_0, theta5_0, theta3_f, theta5_f)
-        t_start3, t_start5 = solver.get_execution_times(theta3_0, theta5_0, theta3_f, theta5_f)
+        t_start3, t_start5 = solver.get_start_times(theta3_0, theta5_0, theta3_f, theta5_f)
 
         t_total = solver.get_total_execution_time(theta3_0, theta5_0, theta3_f, theta5_f)
 
-        t_gripper = t_total - 0.01
+        t_gripper = t_total
 
         
         rospy.logdebug("Start joint 3: {0}".format(t_start3))
@@ -396,12 +403,13 @@ class PnPService:
 
         started = False
 
+
         start_timer = time.time()
         while not rospy.is_shutdown():
             new_timer = time.time()
 
-            if new_timer - start_timer >= t_start3
-                self._limb.set_joint_velocities({joint3: w3})
+            if new_timer - start_timer >= t_start3:
+                self._limb.set_joint_velocities({joint3: -w3})
             
             if new_timer - start_timer >= t_start5:
                 self._limb.set_joint_velocities({joint5: w5})
@@ -410,10 +418,13 @@ class PnPService:
                 gripper_thread.start()
                 started = True
 
-            if new_timer - start_timer >= t_total:
+            if new_timer - start_timer >= t_total + 0.1:
                 break
 
+            time.sleep(0.01)
+
         gripper_thread.join()
+        time.sleep(1)
 
 
 
