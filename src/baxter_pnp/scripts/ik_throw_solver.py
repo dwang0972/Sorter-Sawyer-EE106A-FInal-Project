@@ -31,27 +31,28 @@ class IkThrowSolver:
 
         self.x3 = x3
         self.z3 = z3
-        self.alpha = math.atan2(x3, z3)
+        self.alpha = -math.atan2(-z3, x3)
+        print("Alpha: {0}".format(self.alpha))
 
 
     def x5(self, theta3):
-        return self.x3 + L4*math.cos(theta3 + alpha)
+        return self.x3 + L4*math.cos(theta3 - alpha)
 
     def z5(self, theta3):
-        return self.z3 + L4*math.sin(theta3 + alpha)
+        return self.z3 + L4*math.sin(theta3 - alpha)
 
 
     def x_start(self, theta3, theta5):
-        return self.x5(theta3) + (L6+Lg)*math.cos(-theta5+theta3+alpha)
+        return self.x5(theta3) + (L6+Lg)*math.cos(-theta5+theta3-alpha)
 
     def z_start(self, theta3, theta5):
-        return self.z5(theta3) + (L6+Lg)*math.sin(-theta5+theta3+alpha)
+        return self.z5(theta3) + (L6+Lg)*math.sin(-theta5+theta3-alpha)
 
     def xdot_start(self, theta3, theta5):
-        return -L4*w3*math.sin(theta3+alpha) + (L6+Lg)*(-w3+w5)*math.sin(-theta5+theta3+alpha)
+        return -L4*w3*math.sin(theta3+alpha) + (L6+Lg)*(-w3+w5)*math.sin(-theta5+theta3-alpha)
 
     def zdot_start(self, theta3, theta5):
-        return +L4*w3*math.cos(theta3+alpha) - (L6+Lg)*(-w3+w5)*math.cos(-theta5+theta3+alpha)
+        return +L4*w3*math.cos(theta3+alpha) - (L6+Lg)*(-w3+w5)*math.cos(-theta5+theta3-alpha)
 
     def x_eq(self, var):
         theta3, theta5, t = var
@@ -70,13 +71,9 @@ class IkThrowSolver:
 
 
     def solve(self):
-        return opt.minimize(self.distance, (1,1,1), 
-            constraints=({'type': 'ineq', 'fun': lambda x:  x[2]}, 
-                {'type': 'ineq', 'fun': lambda x: 1.5*math.pi - x[0]}, 
-                {'type': 'ineq', 'fun': lambda x: -x[0] + math.pi/2}, 
-                {'type': 'ineq', 'fun': lambda x: 1.5*math.pi - x[1]},
-                {'type': 'ineq', 'fun': lambda x: x[1] + math.pi/2},
-                {'type': 'ineq', 'fun': lambda x: -x[0]}))
+        return opt.minimize(self.distance, (1,1,1),
+        	bounds=((-math.pi/2, math.pi/2), (-math.pi, math.pi), (0, 999999)),
+            constraints=({'type': 'ineq', 'fun': lambda x:  x[2]}))
 
 
 

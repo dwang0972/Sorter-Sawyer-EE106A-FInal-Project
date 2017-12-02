@@ -80,11 +80,14 @@ class PnPService:
         response = PickAndPlaceResponse()
 
         rospy.logdebug("\nPicking...")
-        self.pick(request.pick.pose)
+        status = self.pick(request.pick.pose)
+        if not status:
+            return response
 
         rospy.logdebug("\nPlacing...")
-        self.place(request.place.pose)
-        #self.throw(None)
+        status = self.place(request.place.pose)
+        if not status:
+            return response
 
         return response
 
@@ -105,7 +108,7 @@ class PnPService:
         status = self.gripper_open()
         if not status:
             rospy.logerr("Gripper open error, moving back to starting point")
-            return
+            return status
 
         pick_pose = deepcopy(pose)
         pick_pose.position.z += 0.04
@@ -114,25 +117,27 @@ class PnPService:
         status = self._approach(pick_pose)
         if not status:
             rospy.logerr("Approach error, moving back to starting point")
-            return
+            return status
         
         # servo to pose
         status = self._servo_to_pose(pick_pose)
         if not status:
             rospy.logerr("Servo to pose error, moving back to starting point")
-            return
+            return status
         
         # close gripper
         status = self.gripper_close()
         if not status:
             rospy.logerr("Gripper close error, moving back to starting point")
-            return
+            return status
         
         # retract to clear object
         status = self._retract()
         if not status:
             rospy.logerr("Retract error, moving back to starting point")
-            return
+            return status
+
+        return True
 
     def place(self, pose):
         # servo above pose
@@ -408,11 +413,17 @@ class PnPService:
         while not rospy.is_shutdown():
             new_timer = time.time()
 
+            dic = {}
+
             if new_timer - start_timer >= t_start3:
-                self._limb.set_joint_velocities({joint3: -w3})
+                dic[joint3] = -99
             
             if new_timer - start_timer >= t_start5:
-                self._limb.set_joint_velocities({joint5: w5})
+                dic[joint5] = 99
+                
+            #print(dic)
+            self._limb.set_joint_velocities(dic)
+            print(self._limb.joint_velocities())
 
             if new_timer - start_timer >= t_gripper and not started:
                 gripper_thread.start()
@@ -424,7 +435,7 @@ class PnPService:
             time.sleep(0.01)
 
         gripper_thread.join()
-        time.sleep(1)
+        time.sleep(5)
 
 
 
