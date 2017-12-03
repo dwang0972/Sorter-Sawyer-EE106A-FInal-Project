@@ -3,6 +3,7 @@ import argparse
 import imutils
 import cv2
 import numpy as np
+import sys
 from matplotlib import pyplot as plt
 
 def color_filter(img, lower, upper):
@@ -14,16 +15,48 @@ def color_filter(img, lower, upper):
     mask = cv2.inRange(hsv, lower_range, upper_range)
     return cv2.bitwise_and(hsv, hsv, mask=mask)
 
+def init_results():
+	return {'rectangle': [],
+			'circle': [],
+			'square': []}
+
+def categorize(shape, contour):
+	results = init_results()
+	if shape not in results.keys():
+		return
+	results[shape].append(contour)
+	return results
+
 # construct the argument parse and parse the arguments
 ap = argparse.ArgumentParser()
 ap.add_argument("-i", "--image", required=True,
 	help="path to the input image")
+
+ap.add_argument("-s", "--shape", required=True,
+	help="type of shape [rectangle, circle, square]")
+
+ap.add_argument("-c", "--color", required=True,
+	help="color of object [red, green, blue, yellow]")
+
 args = vars(ap.parse_args())
 
 # load the image and resize it to a smaller factor so that
 # the shapes can be approximated better
 image = cv2.imread(args["image"])
-image = color_filter(image, [100, 0, 0], [150, 255, 255])
+color = args["color"]
+min_limit = [0,0,0]
+max_limit = [255,255,255]
+
+if color == "blue":
+	# min_limit = [103, 50, 180]
+	min_limit = [100, 0, 0]
+	# max_limit = [130, 255, 255]
+	max_limit = [255, 255, 255]
+elif color == "yellow":
+	min_limit = [20, 0, 0]
+	max_limit = [40, 200, 255]
+
+image = color_filter(image, min_limit, max_limit)
 # cv2.imwrite("test.jpg", image)
 
 resized = imutils.resize(image, width=300)
@@ -58,11 +91,38 @@ for c in cnts:
 	c = c.astype("float")
 	c *= ratio
 	c = c.astype("int")
-	cv2.drawContours(image, [c], -1, (255, 255, 255), 5)
-	cv2.putText(image, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX,
-		0.5, (255, 255, 255), 2)
+	results = categorize(shape, c)
 
-	# show the output image
-	# plt.imshow(image)
-	cv2.imwrite("test.jpg", image)
-	# cv2.waitKey(0)
+	cv2.drawContours(image, [c], -1, (255, 255, 255), 20)
+	cv2.putText(image, shape, (cX, cY), cv2.FONT_HERSHEY_SIMPLEX,
+		10, (255, 255, 255), 2)
+
+requested_shape = args["shape"]
+
+if len(results[shape]) == 0:
+	print("No requested shape found")
+	sys.exit()
+
+cx = 0
+cy = 0
+
+if requested_shape == "rectangle" or requested_shape == "square":
+	if len(results[requested_shape]) != 0:
+		contour = results[requested_shape][0] # set contour
+		for x in contour:
+			cx += x[0][0]
+			cy += x[0][1]
+		cx = int(cx / len(contour))
+		cy = int(cy/len(contour))
+		cv2.circle(image, (cx, cy), 10, (255, 255, 255), -1)
+
+if requested_shape == "circle":
+	
+
+
+
+
+# show the output image
+# plt.imshow(image)
+cv2.imwrite("test.jpg", image)
+cv2.waitKey(0)
