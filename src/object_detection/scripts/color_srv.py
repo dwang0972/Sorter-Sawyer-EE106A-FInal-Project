@@ -47,7 +47,7 @@ class ColorDetectionService:
 
         self.marker_type = int( rospy.get_param("marker_frame") )
         print("Using marker frame id: {0}".format(self.marker_type))
-        
+
         self.frame = rospy.get_param("~image_frame")
         self.image_topic = rospy.get_param("~image_topic")
         rospy.Subscriber(self.image_topic, Image, self.callback)
@@ -82,7 +82,7 @@ class ColorDetectionService:
         cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE)[-2]
         center = None
-        
+
         contours = []
 
         # only proceed if at least one contour was found
@@ -205,7 +205,7 @@ class ColorDetectionService:
 
                 #rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
                 response.colors.append(c)
-                response.poses.append(transformed_pose)        
+                response.poses.append(transformed_pose)
 
         response
 
