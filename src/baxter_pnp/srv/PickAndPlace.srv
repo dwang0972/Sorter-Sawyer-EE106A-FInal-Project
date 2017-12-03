@@ -3,3 +3,4 @@ geometry_msgs/PoseStamped pick
 geometry_msgs/PoseStamped place
 ---
 # Response
+bool status

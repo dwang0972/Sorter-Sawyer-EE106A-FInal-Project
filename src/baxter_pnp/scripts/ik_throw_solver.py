@@ -11,7 +11,7 @@ import matplotlib.animation as animation
 
 g = 9.81
 
-m = 0.1
+m = 0.05
 
 y3 = 1
 z3 = -0.1
@@ -25,13 +25,13 @@ w3 = 1.957
 w5 = 3.485
 
 class IkThrowSolver:
-    def __init__(self, x3, z3, x_target, z_target):
+    def __init__(self, x3, z3, alpha, x_target, z_target):
         self.x_target = x_target
         self.z_target = z_target
 
         self.x3 = x3
         self.z3 = z3
-        self.alpha = -math.atan2(-z3, x3)
+        self.alpha = alpha
         print("Alpha: {0}".format(self.alpha))
 
 
@@ -72,7 +72,7 @@ class IkThrowSolver:
 
     def solve(self):
         return opt.minimize(self.distance, (1,1,1),
-        	bounds=((-math.pi/2, math.pi/2), (-math.pi, math.pi), (0, 999999)),
+        	bounds=((-math.pi, math.pi), (-math.pi/2, math.pi), (0, 999999)),
             constraints=({'type': 'ineq', 'fun': lambda x:  x[2]}))
 
 

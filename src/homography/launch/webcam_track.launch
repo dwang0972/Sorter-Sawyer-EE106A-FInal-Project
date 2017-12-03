@@ -1,6 +1,6 @@
 <launch>
 
-  <arg name="marker_size" default="16.8" />
+  <arg name="marker_size" default="16.55" />
   <arg name="max_new_marker_error" default="0.08" />
   <arg name="max_track_error" default="0.2" />
   <arg name="cam_image_topic" default="/io/internal_camera/head_camera/image_raw" />
@@ -31,7 +31,7 @@
   </node>
 
   <node name="homography" pkg="homography" type="homography_node2.py"  respawn="false" output="screen">
-    <param name="marker_yellow" value="10"/>
+    <param name="marker_yellow" value="4"/>
     <param name="marker_red" value="12"/>
     <param name="marker_blue" value="12"/>
     <param name="marker_green" value="15"/>

@@ -129,13 +129,13 @@ class ColorDetectionService:
 
         detected_objects = {}
 
-        #yellowObjects = self.detect_color(img, [20, 70, 90], [60, 110, 140])
-        #detected_objects["yellow"] = yellowObjects
+        yellowObjects = self.detect_color(img, [20, 70, 90], [60, 110, 140])
+        detected_objects["yellow"] = yellowObjects
 
         #redObjects = self.detect_color(img, [0, 100, 80], [30, 150, 120])
         #detected_objects["red"] = redObjects
 
-        blueObjects = self.detect_color(img, [95, 115, 60], [125, 165, 85])
+        blueObjects = self.detect_color(img, [100, 110, 40], [110, 150, 60])
         detected_objects["blue"] = blueObjects
 
         #greenObjects = self.detect_color(img, [70, 100, 45], [90, 115, 60])

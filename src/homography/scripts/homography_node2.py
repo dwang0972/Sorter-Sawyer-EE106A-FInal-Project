@@ -224,9 +224,10 @@ class Homography:
                     pnp_request.pick = pick_pose
                     pnp_request.place = place_pose
                     rospy.wait_for_service('pick_and_place', 5.0)
-                    self.pnp_srv(pnp_request)
-                    done = True
-                    break
+                    response = self.pnp_srv(pnp_request)
+                    if response.status:
+                        done = True
+                        break
 
             if done:
                 break
