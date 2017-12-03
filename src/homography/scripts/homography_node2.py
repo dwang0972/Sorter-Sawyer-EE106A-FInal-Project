@@ -54,8 +54,8 @@ class Homography:
         self.marker_pose_srv = rospy.ServiceProxy('marker_pose', ArMarkerPose)
 
         # Circle Service
-        rospy.wait_for_service('color_detection', 5)
-        self.object_pose_srv = rospy.ServiceProxy('color_detection', ObjectPoses)
+        rospy.wait_for_service('shape_detection', 5)
+        self.object_pose_srv = rospy.ServiceProxy('shape_detection', ObjectPoses)
 
         # Pick and place Service
         rospy.wait_for_service('pick_and_place', 5)
@@ -179,7 +179,7 @@ class Homography:
         while not rospy.is_shutdown():
             self.rate.sleep()
 
-            rospy.wait_for_service('color_detection', 5.0)
+            rospy.wait_for_service('shape_detection', 5.0)
             object_pose_request = ObjectPosesRequest(frame='/base')
             object_pose_response = self.object_pose_srv(object_pose_request)
             pick_poses = object_pose_response.poses

@@ -24,7 +24,7 @@
     <param name="hover_distance" value="0.3" />
   </node>
 
-  <node name="color_detection" pkg="object_detection" type="color_srv.py" respawn="false" output="screen">
+  <node name="shape_detection" pkg="object_detection" type="detect_shapes.py" respawn="false" output="screen">
     <param name="image_topic" value="/io/internal_camera/head_camera/image_raw" />
     <param name="image_frame" value="/head_camera" />
     <param name="cam_info_topic" value="/io/internal_camera/head_camera/camera_info" />
