@@ -46,7 +46,7 @@ class ColorDetectionService:
 
         self.marker_type = int( rospy.get_param("marker_frame") )
         print("Using marker frame id: {0}".format(self.marker_type))
-        
+
         self.frame = rospy.get_param("~image_frame")
         self.image_topic = rospy.get_param("~image_topic")
         rospy.Subscriber(self.image_topic, Image, self.callback)
@@ -81,7 +81,7 @@ class ColorDetectionService:
         cnts = cv2.findContours(mask.copy(), cv2.RETR_EXTERNAL,
             cv2.CHAIN_APPROX_SIMPLE)[-2]
         center = None
-        
+
         contours = []
 
         # only proceed if at least one contour was found
@@ -104,7 +104,7 @@ class ColorDetectionService:
             if M["m00"] != 0:
                 center = (int(M["m10"] / M["m00"]), int(M["m01"] / M["m00"]))
                 #rospy.logdebug("Moment: {0}, {1}".format(center[0], center[1]))
-            
+
                 # draw the circle and centroid on the frame,
                 # then update the list of tracked points
                 contours.append((center[0], center[1], int(radius)))
@@ -133,7 +133,7 @@ class ColorDetectionService:
 
         greenObjects = self.detect_color(img, [80, 100, 40], [100, 110, 60])
         detected_objects["green"] = greenObjects
-        
+
         for color in detected_objects:
             for obj in detected_objects[color]:
                 obj = np.uint16(np.around(obj))
@@ -198,7 +198,7 @@ class ColorDetectionService:
 
                 #rospy.logdebug("Point in base frame: {0}".format(transformed_pose.pose.position))
                 response.colors.append(c)
-                response.poses.append(transformed_pose)        
+                response.poses.append(transformed_pose)
 
         response
 
